@@ -1,0 +1,15 @@
+{
+  "name": "animatrix-battle",
+  "version": "0.1.0",
+  "description": "Fight. Animate. Dominate. — a browser stickman fighting game.",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ANIMATRIX BATTLE</title>
+  <link rel="icon" type="image/svg+xml" href="assets/branding/logo.svg" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-root">
+    <div id="game-container"></div>
+  </div>
+
+  <!-- Phaser 3 (vendored locally in client/vendor/ so the game works
+       offline and isn't dependent on any external CDN being reachable) -->
+  <script src="vendor/phaser.min.js"></script>
+  <!-- Socket.IO client (vendored) — used only when Online Battle is opened -->
+  <script src="vendor/socket.io.min.js"></script>
+
+  <!-- Our game code (ES module) -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
