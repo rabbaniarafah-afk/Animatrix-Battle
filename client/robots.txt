@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://animatrix-battle.onrender.com/sitemap.xml
