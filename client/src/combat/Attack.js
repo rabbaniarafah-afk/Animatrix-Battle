@@ -116,6 +116,118 @@ export const ATTACKS = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Per-character special moves. Each fighter's special replaces the generic
+// `special` entry above with something that looks and plays differently —
+// see StickFighter._startAttack() / CombatController for how the extra
+// fields (`hits`, `teleportBehind`, `pullOpponent`) are handled.
+// ---------------------------------------------------------------------------
+export const SPECIALS_BY_CHARACTER = {
+  yellow: {
+    id: 'special',
+    name: 'RAPID RUSH',
+    poseWindup: 'yellowSpecialWindup',
+    poseStrike: 'yellowSpecialStrike',
+    startup: 260,
+    active: 220,
+    recovery: 320,
+    damage: 13, // per hit
+    hits: 2, // twin-hit flurry
+    knockback: 260,
+    knockbackUp: -140,
+    hitstun: 300,
+    range: 92,
+    reachY: -68,
+    height: 48,
+    cooldown: 260,
+    requiresGrounded: true,
+    energyCost: 100,
+  },
+  barbarian: {
+    id: 'special',
+    name: 'GROUND SLAM',
+    poseWindup: 'barbarianSpecialWindup',
+    poseStrike: 'barbarianSpecialStrike',
+    startup: 420,
+    active: 150,
+    recovery: 420,
+    damage: 32,
+    knockback: 500,
+    knockbackUp: -180,
+    hitstun: 560,
+    range: 110,
+    reachY: -40,
+    height: 60,
+    cooldown: 320,
+    requiresGrounded: true,
+    energyCost: 100,
+    groundPound: true, // extra dust + heavier shake on landing the hit
+  },
+  shadowlord: {
+    id: 'special',
+    name: 'SHADOW DASH',
+    poseWindup: 'shadowlordSpecialWindup',
+    poseStrike: 'shadowlordSpecialStrike',
+    startup: 240,
+    active: 140,
+    recovery: 300,
+    damage: 24,
+    knockback: 420,
+    knockbackUp: -180,
+    hitstun: 480,
+    range: 90,
+    reachY: -60,
+    height: 50,
+    cooldown: 280,
+    requiresGrounded: true,
+    energyCost: 100,
+    teleportBehind: true, // blinks behind the opponent right before striking
+  },
+  gothliotic: {
+    id: 'special',
+    name: 'BLINK STRIKE',
+    poseWindup: 'gothlioticSpecialWindup',
+    poseStrike: 'gothlioticSpecialStrike',
+    startup: 140,
+    active: 110,
+    recovery: 260,
+    damage: 20,
+    knockback: 380,
+    knockbackUp: -160,
+    hitstun: 420,
+    range: 88,
+    reachY: -66,
+    height: 44,
+    cooldown: 240,
+    requiresGrounded: true,
+    energyCost: 100,
+  },
+  gosths: {
+    id: 'special',
+    name: 'VOID GRASP',
+    poseWindup: 'gosthsSpecialWindup',
+    poseStrike: 'gosthsSpecialStrike',
+    startup: 320,
+    active: 150,
+    recovery: 360,
+    damage: 28,
+    knockback: 440,
+    knockbackUp: -200,
+    hitstun: 500,
+    range: 96,
+    reachY: -64,
+    height: 50,
+    cooldown: 300,
+    requiresGrounded: true,
+    energyCost: 100,
+    pullOpponent: true, // yanks the opponent in close before the hit lands
+  },
+};
+
+export function getSpecialFor(characterId) {
+  return SPECIALS_BY_CHARACTER[characterId] || ATTACKS.special;
+}
+
 export function totalAttackDuration(attack) {
   return attack.startup + attack.active + attack.recovery;
 }

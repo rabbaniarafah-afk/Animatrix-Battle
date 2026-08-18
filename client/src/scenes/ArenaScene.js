@@ -32,6 +32,11 @@ export class ArenaScene extends Phaser.Scene {
     this.arena = this.arenaConfig;
     this.arena.build(this);
 
+    // Reset camera in case a previous match (same scene instance, reused by
+    // Phaser on scene.start) left it zoomed/panned from a finishing blow.
+    this.cameras.main.setZoom(1);
+    this.cameras.main.centerOn(width / 2, height / 2);
+
     this.physics.world.setBounds(this.arena.leftBoundary, 0, this.arena.rightBoundary - this.arena.leftBoundary, height);
 
     this.groundCollider = this.add.rectangle(
@@ -63,7 +68,8 @@ export class ArenaScene extends Phaser.Scene {
     this.ai = !this.isLocal && !this.isOnline ? new AIController(this.player2, this.player1) : null;
 
     const onHit = this.isOnline && this.isHost ? (evt) => window.ANIMATRIX.network.sendEvent(evt) : null;
-    this.combat = new CombatController(this, this.player1, this.player2, { onHit });
+    const onFinish = (winner, loser, point) => this._triggerFinishCinematic(winner, loser, point);
+    this.combat = new CombatController(this, this.player1, this.player2, { onHit, onFinish });
     this.hud = new MatchHUD(this, this.player1, this.player2);
 
     this._setupInput();
@@ -71,6 +77,8 @@ export class ArenaScene extends Phaser.Scene {
 
     this.controlsLocked = true;
     this.matchOver = false;
+    this.finishTriggered = false;
+    this.hitStopUntil = 0;
     this.netTickAccum = 0;
     this.remoteInput = this._emptyKeys();
 
@@ -285,12 +293,48 @@ export class ArenaScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Fires once, on the exact hit that reduces someone to 0 HP: a brief
+   * hit-stop freeze, then a camera zoom/pan into the impact point, plus the
+   * winner striking their victory pose — before handing off to the normal
+   * K.O. overlay.
+   */
+  _triggerFinishCinematic(winner, loser, point) {
+    if (this.finishTriggered) return;
+    this.finishTriggered = true;
+    this.matchOver = true;
+
+    this.hitStopUntil = this.time.now + 130;
+    this.cameras.main.zoomTo(1.18, 500, 'Sine.easeOut');
+    this.cameras.main.pan(point.x, this.scale.height / 2, 500, 'Sine.easeOut');
+    screenShake(this, 0.014, 260);
+    winner.playVictoryPose();
+
+    this.time.delayedCall(900, () => {
+      this.hud.showKO(
+        winner,
+        () => {
+          if (this.isOnline && this.isHost) window.ANIMATRIX.network.sendEvent({ type: 'rematch' });
+          this.scene.start('ArenaScene', { mode: this.mode });
+        },
+        () => {
+          window.ANIMATRIX.network?.disconnect();
+          this.scene.start('MenuScene');
+        }
+      );
+    });
+  }
+
   update(time, delta) {
     if (this.escKey.isDown && !this.matchOver) {
       window.ANIMATRIX.network?.disconnect();
       this.scene.start('MenuScene');
       return;
     }
+
+    // Brief hit-stop freeze on the finishing blow — skip advancing gameplay
+    // for a few frames while the camera zoom tween plays out.
+    if (this.hitStopUntil && time < this.hitStopUntil) return;
 
     if (!this.controlsLocked && !this.matchOver) {
       if (this.isOnline) {
@@ -322,22 +366,10 @@ export class ArenaScene extends Phaser.Scene {
     this.player2.update(delta);
     this.hud.update();
 
-    if (!this.matchOver && (this.player1.defeated || this.player2.defeated)) {
-      this.matchOver = true;
+    if (!this.matchOver && !this.finishTriggered && (this.player1.defeated || this.player2.defeated)) {
       const winner = this.player1.defeated ? this.player2 : this.player1;
-      this.time.delayedCall(500, () => {
-        this.hud.showKO(
-          winner,
-          () => {
-            if (this.isOnline && this.isHost) window.ANIMATRIX.network.sendEvent({ type: 'rematch' });
-            this.scene.start('ArenaScene', { mode: this.mode });
-          },
-          () => {
-            window.ANIMATRIX.network?.disconnect();
-            this.scene.start('MenuScene');
-          }
-        );
-      });
+      const loser = this.player1.defeated ? this.player1 : this.player2;
+      this._triggerFinishCinematic(winner, loser, { x: loser.feetX, y: loser.feetY - 80 });
     }
   }
 }

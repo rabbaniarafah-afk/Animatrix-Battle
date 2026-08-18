@@ -2,7 +2,7 @@ import { AnimationController } from './AnimationController.js';
 import { getCharacterById } from './CharacterConfig.js';
 import { Hitbox } from '../combat/Hitbox.js';
 import { Hurtbox } from '../combat/Hurtbox.js';
-import { ATTACKS } from '../combat/Attack.js';
+import { ATTACKS, getSpecialFor } from '../combat/Attack.js';
 import { playPunch, playHeavyPunch, playKick, playSpecial } from '../audio/SFX.js';
 
 const MOVE_SPEED = 230;
@@ -15,6 +15,7 @@ const JUMP_PREP_MS = 70;
 const DASH_SPEED = 560;
 const DASH_MS = 180;
 const DASH_COOLDOWN_MS = 420;
+const MULTI_HIT_GAP_MS = 90; // minimum spacing between hits of a multi-hit special
 
 const BODY_W = 46;
 const BODY_H = 150;
@@ -25,6 +26,10 @@ const MAX_HEALTH = 100;
  * StickFighter — physics body (an invisible Zone, so the visual is fully
  * owned by the procedural rig) + full combat state machine + the
  * AnimationController that renders it.
+ *
+ * Each character's passive `abilities` (see CharacterConfig.js) are applied
+ * here as simple multipliers on movement/damage/knockback — see the
+ * `_ability()` helper.
  */
 export class StickFighter {
   constructor(scene, x, groundY, characterId, opts = {}) {
@@ -33,11 +38,17 @@ export class StickFighter {
     this.playerLabel = opts.label || 'FIGHTER';
     this.isAI = !!opts.isAI;
 
+    // Effective, ability-adjusted movement stats for this fighter.
+    this.moveSpeed = MOVE_SPEED * this._ability('moveSpeedMult', 1);
+    this.runSpeed = RUN_SPEED * this._ability('moveSpeedMult', 1);
+    this.dashSpeed = DASH_SPEED * this._ability('dashSpeedMult', 1);
+    this.dashCooldownMs = DASH_COOLDOWN_MS * this._ability('dashCooldownMult', 1);
+
     this.body = scene.add.zone(x, groundY - BODY_H / 2, BODY_W, BODY_H);
     scene.physics.add.existing(this.body);
     this.body.body.setCollideWorldBounds(true);
     this.body.body.setDragX(FRICTION);
-    this.body.body.maxVelocity.x = RUN_SPEED + DASH_SPEED;
+    this.body.body.maxVelocity.x = RUN_SPEED + DASH_SPEED + 200;
     this.body.body.setSize(BODY_W, BODY_H);
 
     this.facing = opts.facing || 1;
@@ -53,18 +64,22 @@ export class StickFighter {
     this.health = MAX_HEALTH;
     this.maxHealth = MAX_HEALTH;
     this.defeated = false;
+    this.defeatElapsed = 0;
+    this.victoryPose = false;
     this.energy = 0;
     this.maxEnergy = 100;
 
     this.comboCounter = 0;
     this.comboResetTimer = 0;
 
-    this.attack = null; // { config, phase, timer, hitConfirmed }
+    this.attack = null; // { config, phase, timer, hitCount, maxHits, lastHitTime }
     this.attackCooldown = 0;
     this.hitstunTimer = 0;
     this.reactionType = null; // 'hitReact' | 'knockback' | null
     this.reactionDuration = 1;
     this.reactionElapsed = 0;
+
+    this.lastOpponent = null;
 
     this.hurtbox = new Hurtbox(this);
 
@@ -80,6 +95,10 @@ export class StickFighter {
         padding: { x: 6, y: 2 },
       })
       .setOrigin(0.5);
+  }
+
+  _ability(key, fallback) {
+    return this.config.abilities?.[key] ?? fallback;
   }
 
   get feetX() {
@@ -104,12 +123,13 @@ export class StickFighter {
   /**
    * @param {object} keys
    *  { left, right, down, run:{isDown}, jumpPressed, blockHeld,
-   *    dashPressed, lightPunch, heavyPunch, kick }
-   * @param {StickFighter} opponent - used to auto-face them
+   *    dashPressed, lightPunch, heavyPunch, kick, dashAttack, special }
+   * @param {StickFighter} opponent - used to auto-face them and for special-move mechanics
    */
   handleInput(keys, opponent) {
     const b = this.body.body;
     const grounded = this.isGrounded;
+    if (opponent) this.lastOpponent = opponent;
 
     // Hitstun / defeat: physics keeps running (knockback drift, gravity)
     // but no player-driven movement or new actions.
@@ -142,7 +162,7 @@ export class StickFighter {
     }
 
     if (this.dashing) {
-      b.setVelocityX(this.facing * DASH_SPEED);
+      b.setVelocityX(this.facing * this.dashSpeed);
       this._updateTimers();
       return;
     }
@@ -153,7 +173,7 @@ export class StickFighter {
 
     this.blocking = !!keys.blockHeld && grounded;
     const running = keys.run?.isDown && grounded && !this.blocking;
-    const maxSpeed = running ? RUN_SPEED : MOVE_SPEED;
+    const maxSpeed = running ? this.runSpeed : this.moveSpeed;
     const accel = grounded ? ACCEL : AIR_ACCEL;
 
     this.crouching = grounded && keys.down.isDown && moveDir === 0 && !this.blocking;
@@ -207,12 +227,20 @@ export class StickFighter {
 
   _startAttack(id) {
     if (this.attackCooldown > 0) return;
-    const config = ATTACKS[id];
+    const config = id === 'special' ? getSpecialFor(this.config.id) : ATTACKS[id];
     if (config.requiresAirborne && this.isGrounded) return;
     if (config.requiresGrounded && !this.isGrounded) return;
     if (config.energyCost && this.energy < config.energyCost) return;
 
-    this.attack = { config, phase: 'startup', timer: 0, hitConfirmed: false };
+    this.attack = {
+      config,
+      phase: 'startup',
+      timer: 0,
+      hitCount: 0,
+      maxHits: config.hits || 1,
+      lastHitTime: null,
+    };
+
     if (id === 'dashAttack') {
       this.body.body.setVelocityX(this.facing * config.dashSpeed);
     }
@@ -233,6 +261,7 @@ export class StickFighter {
     if (a.phase === 'startup' && a.timer >= a.config.startup) {
       a.phase = 'active';
       a.timer = 0;
+      this._applySpecialMechanics(a.config);
     } else if (a.phase === 'active' && a.timer >= a.config.active) {
       a.phase = 'recovery';
       a.timer = 0;
@@ -242,14 +271,37 @@ export class StickFighter {
     }
   }
 
-  /** Returns a Hitbox instance only while the attack is in its active window. */
+  /** One-time special-move effects triggered right as the active (hit) window begins. */
+  _applySpecialMechanics(config) {
+    const opp = this.lastOpponent;
+    if (!opp || opp.defeated) return;
+
+    if (config.teleportBehind) {
+      const behindX = opp.feetX - opp.facing * 90;
+      this.body.body.reset(behindX, this.body.body.y);
+      this.facing = opp.feetX >= this.feetX ? 1 : -1;
+    }
+
+    if (config.pullOpponent) {
+      const dir = opp.feetX >= this.feetX ? -1 : 1;
+      opp.body.body.setVelocityX(dir * 520);
+      opp.body.body.setVelocityY(-80);
+    }
+  }
+
+  /** Returns a Hitbox instance only while the attack is in its active window and hasn't used up its hits. */
   getActiveHitbox() {
-    if (!this.attack || this.attack.phase !== 'active' || this.attack.hitConfirmed) return null;
-    return new Hitbox(this, this.attack.config);
+    if (!this.attack || this.attack.phase !== 'active') return null;
+    const a = this.attack;
+    if (a.hitCount >= a.maxHits) return null;
+    if (a.lastHitTime != null && a.timer - a.lastHitTime < MULTI_HIT_GAP_MS) return null;
+    return new Hitbox(this, a.config);
   }
 
   markHitConfirmed() {
-    if (this.attack) this.attack.hitConfirmed = true;
+    if (!this.attack) return;
+    this.attack.hitCount += 1;
+    this.attack.lastHitTime = this.attack.timer;
   }
 
   /**
@@ -259,10 +311,11 @@ export class StickFighter {
   takeHit(hit) {
     if (this.defeated) return;
     const dir = this.feetX >= hit.fromX ? 1 : -1;
+    const kbResist = this._ability('knockbackResist', 1);
 
     if (hit.blocked) {
       this.health = Math.max(0, this.health - hit.damage * 0.12);
-      this.body.body.setVelocityX(dir * hit.knockback * 0.35);
+      this.body.body.setVelocityX(dir * hit.knockback * 0.35 * kbResist);
       this.reactionType = null; // stays in block pose
       this.comboCounter = 0;
       this.comboResetTimer = 0;
@@ -271,8 +324,8 @@ export class StickFighter {
     }
 
     this.health = Math.max(0, this.health - hit.damage);
-    this.body.body.setVelocityX(dir * hit.knockback);
-    this.body.body.setVelocityY(hit.knockbackUp);
+    this.body.body.setVelocityX(dir * hit.knockback * kbResist);
+    this.body.body.setVelocityY(hit.knockbackUp * kbResist);
     this.hitstunTimer = hit.hitstun;
     this.reactionDuration = hit.hitstun;
     this.reactionElapsed = 0;
@@ -287,11 +340,18 @@ export class StickFighter {
 
     if (this.health <= 0) {
       this.defeated = true;
+      this.defeatElapsed = 0;
     }
   }
 
   gainEnergy(amount) {
-    this.energy = Phaser.Math.Clamp(this.energy + amount, 0, this.maxEnergy);
+    const scaled = amount * this._ability('energyRate', 1);
+    this.energy = Phaser.Math.Clamp(this.energy + scaled, 0, this.maxEnergy);
+  }
+
+  /** Called by ArenaScene on the surviving fighter once a match ends. */
+  playVictoryPose() {
+    this.victoryPose = true;
   }
 
   _updateTimers() {
@@ -303,7 +363,7 @@ export class StickFighter {
       this.dashTimer += dt;
       if (this.dashTimer >= DASH_MS) {
         this.dashing = false;
-        this.dashCooldown = DASH_COOLDOWN_MS;
+        this.dashCooldown = this.dashCooldownMs;
       }
     }
 
@@ -317,10 +377,13 @@ export class StickFighter {
       this.comboResetTimer = Math.max(0, this.comboResetTimer - dt);
       if (this.comboResetTimer === 0) this.comboCounter = 0;
     }
+
+    if (this.defeated) this.defeatElapsed += dt;
   }
 
   _computeAnimState() {
-    if (this.defeated) return { kind: 'defeat' };
+    if (this.victoryPose) return { kind: 'victory' };
+    if (this.defeated) return { kind: 'defeat', t: this.defeatElapsed };
 
     if (this.hitstunTimer > 0) {
       if (this.reactionType === 'knockback') return { kind: 'knockback' };
@@ -354,6 +417,7 @@ export class StickFighter {
 
     this.anim.update(dt, animState, { feetX: this.feetX, feetY: this.feetY, facing: this.facing });
 
+    this.nameLabel.setVisible(!this.defeated && !this.victoryPose);
     this.nameLabel.x = this.feetX;
     this.nameLabel.y = this.feetY - BODY_H - 26;
 
@@ -378,6 +442,8 @@ export class StickFighter {
       health: this.health,
       energy: this.energy,
       defeated: this.defeated,
+      defeatElapsed: this.defeatElapsed,
+      victoryPose: this.victoryPose,
       blocking: this.blocking,
       crouching: this.crouching,
       dashing: this.dashing,
@@ -397,6 +463,8 @@ export class StickFighter {
     this.health = s.health;
     this.energy = s.energy;
     this.defeated = s.defeated;
+    this.defeatElapsed = s.defeatElapsed ?? this.defeatElapsed;
+    this.victoryPose = !!s.victoryPose;
     this.blocking = s.blocking;
     this.crouching = s.crouching;
     this.dashing = s.dashing;
@@ -404,6 +472,9 @@ export class StickFighter {
     this.reactionType = s.reactionType;
     this.reactionElapsed = s.reactionElapsed;
     this.reactionDuration = s.reactionDuration;
-    this.attack = s.attack ? { config: ATTACKS[s.attack.id], phase: s.attack.phase, timer: s.attack.timer, hitConfirmed: true } : null;
+    const cfg = s.attack ? (s.attack.id === 'special' ? getSpecialFor(this.config.id) : ATTACKS[s.attack.id]) : null;
+    this.attack = s.attack
+      ? { config: cfg, phase: s.attack.phase, timer: s.attack.timer, hitCount: 0, maxHits: cfg.hits || 1, lastHitTime: null }
+      : null;
   }
 }

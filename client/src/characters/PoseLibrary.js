@@ -149,7 +149,7 @@ export const POSES = {
     armFront: [64, 8], armBack: [-16, 30],
   }),
 
-  // --- Special attack (big telegraphed haymaker) ----------------------
+  // --- Special attack (generic fallback haymaker) ----------------------
   specialWindup: pose({
     hipDrop: -6, lean: -34, headTilt: 10,
     armFront: [-70, 130], armBack: [40, 30],
@@ -159,6 +159,66 @@ export const POSES = {
     hipDrop: -8, lean: 42,
     armFront: [90, -6], armBack: [-30, 30],
     legFront: [28, 10], legBack: [4, 6],
+  }),
+
+  // --- Yellow: RAPID RUSH (twin-hit flurry) -----------------------------
+  yellowSpecialWindup: pose({
+    hipDrop: -4, lean: -20,
+    armFront: [-50, 90], armBack: [-40, 90],
+    legFront: [18, 14], legBack: [-14, 10],
+  }),
+  yellowSpecialStrike: pose({
+    lean: 24,
+    armFront: [78, 6], armBack: [70, 10],
+    legFront: [22, 8], legBack: [-2, 6],
+  }),
+
+  // --- Barbarian: GROUND SLAM (overhead double-fist smash) --------------
+  barbarianSpecialWindup: pose({
+    hipDrop: -10, lean: -46, headTilt: 14,
+    armFront: [-96, 20], armBack: [-90, 20],
+    legFront: [14, 20], legBack: [-12, 16],
+  }),
+  barbarianSpecialStrike: pose({
+    hipDrop: 18, lean: 30,
+    armFront: [64, 40], armBack: [58, 44],
+    legFront: [30, 34], legBack: [-8, 24],
+  }),
+
+  // --- Shadowlord: SHADOW DASH (teleport-through strike) -----------------
+  shadowlordSpecialWindup: pose({
+    hipDrop: -4, lean: -16, headTilt: -12,
+    armFront: [-30, 20], armBack: [30, 20],
+    legFront: [10, 10], legBack: [-10, 8],
+  }),
+  shadowlordSpecialStrike: pose({
+    lean: 20,
+    armFront: [80, 2], armBack: [-40, 24],
+    legFront: [40, 12], legBack: [-30, 18],
+  }),
+
+  // --- Gothliotic: BLINK STRIKE (fast low jab) ----------------------------
+  gothlioticSpecialWindup: pose({
+    hipDrop: 4, lean: -14,
+    armFront: [-24, 60], armBack: [16, 20],
+    legFront: [12, 20], legBack: [-10, 14],
+  }),
+  gothlioticSpecialStrike: pose({
+    lean: 12,
+    armFront: [72, 2], armBack: [-10, 16],
+    legFront: [16, 8], legBack: [-6, 6],
+  }),
+
+  // --- Gosths: VOID GRASP (pull-in choke strike) --------------------------
+  gosthsSpecialWindup: pose({
+    hipDrop: -2, lean: -18,
+    armFront: [-60, 70], armBack: [10, 20],
+    legFront: [14, 12], legBack: [-12, 10],
+  }),
+  gosthsSpecialStrike: pose({
+    lean: 26,
+    armFront: [86, 4], armBack: [-20, 24],
+    legFront: [24, 10], legBack: [0, 6],
   }),
 
   // --- Reactions -------------------------------------------------------
@@ -174,10 +234,37 @@ export const POSES = {
     legFront: [-22, 20], legBack: [-26, 16],
   }),
 
+  // --- K.O. sequence (phased: stagger -> collapse -> flat) --------------
+  koStagger: pose({
+    hipDrop: 4, lean: -52, headTilt: -24,
+    armFront: [-60, 50], armBack: [-55, 46],
+    legFront: [-16, 16], legBack: [-20, 12],
+  }),
+
+  koCollapse: pose({
+    hipDrop: 34, lean: -78, headTilt: -26,
+    armFront: [-72, 55], armBack: [-62, 50],
+    legFront: [-32, 34], legBack: [-36, 30],
+  }),
+
+  koFlat: pose({
+    hipDrop: 46, lean: -92, headTilt: -18,
+    armFront: [-80, 62], armBack: [-40, 34],
+    legFront: [-40, 42], legBack: [-44, 38],
+  }),
+
+  // Kept as an alias so any older reference to POSES.defeat still resolves.
   defeat: pose({
-    hipDrop: 30, lean: -70, headTilt: -20,
-    armFront: [-70, 50], armBack: [-60, 46],
-    legFront: [-30, 30], legBack: [-34, 26],
+    hipDrop: 46, lean: -92, headTilt: -18,
+    armFront: [-80, 62], armBack: [-40, 34],
+    legFront: [-40, 42], legBack: [-44, 38],
+  }),
+
+  // --- Victory pose (arms raised) -----------------------------------------
+  victory: pose({
+    hipDrop: -6, lean: -8, headTilt: 8,
+    armFront: [-150, 20], armBack: [-140, 24],
+    legFront: [14, 8], legBack: [-10, 6],
   }),
 };
 

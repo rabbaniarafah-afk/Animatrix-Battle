@@ -24,6 +24,10 @@ export const CHARACTERS = [
     outline: null,
     scale: 0.34,
     description: 'Balanced and relentless.',
+    specialName: 'RAPID RUSH',
+    abilityName: 'Relentless',
+    abilityDesc: 'Builds energy 20% faster than anyone else.',
+    abilities: { energyRate: 1.2 },
   },
   {
     id: 'barbarian',
@@ -36,6 +40,10 @@ export const CHARACTERS = [
     outline: null,
     scale: 0.34,
     description: 'Heavy hits, heavy presence.',
+    specialName: 'GROUND SLAM',
+    abilityName: 'Bruiser',
+    abilityDesc: 'Heavy Punches and the special hit 15% harder.',
+    abilities: { heavyDamageMult: 1.15 },
   },
   {
     id: 'shadowlord',
@@ -48,6 +56,10 @@ export const CHARACTERS = [
     outline: null,
     scale: 0.34,
     description: 'Strikes from the dark.',
+    specialName: 'SHADOW DASH',
+    abilityName: 'Phantom Step',
+    abilityDesc: 'Dashes 25% farther and recovers from it faster.',
+    abilities: { dashSpeedMult: 1.25, dashCooldownMult: 0.7 },
   },
   {
     id: 'gothliotic',
@@ -60,6 +72,10 @@ export const CHARACTERS = [
     outline: 0x2a2f3a,
     scale: 0.34,
     description: 'Fast, pale, unpredictable.',
+    specialName: 'BLINK STRIKE',
+    abilityName: 'Featherweight',
+    abilityDesc: 'Moves and runs noticeably faster than the rest.',
+    abilities: { moveSpeedMult: 1.18 },
   },
   {
     id: 'gosths',
@@ -72,6 +88,10 @@ export const CHARACTERS = [
     outline: 0x8fa3b8,
     scale: 0.34,
     description: 'A silhouette that hits back.',
+    specialName: 'VOID GRASP',
+    abilityName: 'Unshaken',
+    abilityDesc: 'Takes 20% less knockback from every hit.',
+    abilities: { knockbackResist: 0.8 },
   },
 ];
 

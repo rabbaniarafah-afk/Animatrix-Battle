@@ -122,9 +122,27 @@ export class AnimationController {
         smoothRate = 0.45;
         break;
 
-      case 'defeat':
-        target = POSES.defeat;
-        smoothRate = 0.3;
+      // Phased K.O. sequence: a sharp backward stagger, then a collapsing
+      // fall, then settling into a flat down pose — driven by elapsed time
+      // (animState.t, ms) rather than a single static pose.
+      case 'defeat': {
+        const t = animState.t || 0;
+        if (t < 220) {
+          target = blendPose(POSES.knockback, POSES.koStagger, Ease.Quadratic.Out(t / 220));
+          smoothRate = 0.5;
+        } else if (t < 600) {
+          target = blendPose(POSES.koStagger, POSES.koCollapse, Ease.Quadratic.In((t - 220) / 380));
+          smoothRate = 0.4;
+        } else {
+          target = blendPose(POSES.koCollapse, POSES.koFlat, Ease.Quadratic.Out(Math.min(1, (t - 600) / 300)));
+          smoothRate = 0.3;
+        }
+        break;
+      }
+
+      case 'victory':
+        target = POSES.victory;
+        smoothRate = 0.15;
         break;
 
       default:

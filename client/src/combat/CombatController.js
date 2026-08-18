@@ -7,10 +7,12 @@ import { playHit, playBlock } from '../audio/SFX.js';
 //
 // Each frame, checks whether either fighter currently has an active hitbox
 // (only true during that attack's "active" window) overlapping the other
-// fighter's hurtbox. On the first overlap per swing (hitConfirmed guards
-// against multi-hitting across several active frames) it resolves damage,
-// knockback, hit-stun, energy gain, combo tracking, and spawns feedback
-// (spark / block spark / shake / combo counter popup).
+// fighter's hurtbox. hitCount/maxHits (on the attacker's `attack` object)
+// guard how many times a single swing can land — most moves allow exactly
+// one hit, but multi-hit specials (see Attack.js `hits`) allow a few, each
+// spaced out by StickFighter's MULTI_HIT_GAP_MS. Every landed hit resolves
+// damage, knockback, hit-stun, energy gain, combo tracking, and spawns
+// feedback (spark / block spark / shake / combo counter popup).
 // ---------------------------------------------------------------------------
 
 export class CombatController {
@@ -18,6 +20,7 @@ export class CombatController {
     this.scene = scene;
     this.fighters = [fighterA, fighterB];
     this.onHit = opts.onHit || null; // used in online host mode to relay fx to the guest
+    this.onFinish = opts.onFinish || null; // called once, on the hit that reduces someone to 0 HP
   }
 
   update() {
@@ -41,26 +44,32 @@ export class CombatController {
     const config = attacker.attack.config;
     const isSpecial = config.id === 'special';
 
+    // Barbarian's "Bruiser" passive: heavy punch and special hit harder.
+    let damage = config.damage;
+    if ((config.id === 'heavyPunch' || isSpecial) && attacker.config.abilities?.heavyDamageMult) {
+      damage *= attacker.config.abilities.heavyDamageMult;
+    }
+
     defender.takeHit({
-      damage: config.damage,
+      damage,
       knockback: config.knockback,
       knockbackUp: config.knockbackUp,
       hitstun: config.hitstun,
       fromX: attacker.feetX,
       blocked,
-      energyGain: blocked ? config.damage * 0.25 : config.damage * 0.55,
+      energyGain: blocked ? damage * 0.25 : damage * 0.55,
     });
-    attacker.gainEnergy(blocked ? config.damage * 0.4 : config.damage * 1.1);
+    attacker.gainEnergy(blocked ? damage * 0.4 : damage * 1.1);
 
     const contactX = (hRect.left + hRect.right) / 2;
     const contactY = (hRect.top + hRect.bottom) / 2;
+    const big = damage >= 12;
 
     if (blocked) {
       blockSpark(this.scene, contactX, contactY);
       screenShake(this.scene, 0.003, 60);
       playBlock();
     } else {
-      const big = config.damage >= 12;
       spawnHitSpark(this.scene, contactX, contactY, attacker.config.color, big);
       screenShake(this.scene, big ? 0.009 : 0.005, big ? 160 : 100);
       playHit({ big });
@@ -73,11 +82,15 @@ export class CombatController {
         x: contactX,
         y: contactY,
         color: attacker.config.color,
-        big: config.damage >= 12,
+        big,
         blocked,
         special: isSpecial,
         comboCount: defender.comboCounter,
       });
+    }
+
+    if (!blocked && defender.defeated && this.onFinish) {
+      this.onFinish(attacker, defender, { x: contactX, y: contactY });
     }
   }
 }

@@ -16,6 +16,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     // touch already-destroyed GameObjects from the last time this scene ran.
     this.previewName = null;
     this.previewDesc = null;
+    this.previewAbility = null;
     this.cardObjects = null;
     this.readyBg = null;
     this.readyLabel = null;
@@ -116,11 +117,15 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   _buildPreview(width, height) {
     this.previewName = this.add
-      .text(width / 2, height - 128, '', { fontFamily: 'Russo One, sans-serif', fontSize: '22px', color: '#ffffff' })
+      .text(width / 2, height - 154, '', { fontFamily: 'Russo One, sans-serif', fontSize: '22px', color: '#ffffff' })
       .setOrigin(0.5);
 
     this.previewDesc = this.add
-      .text(width / 2, height - 100, '', { fontFamily: 'Rajdhani, sans-serif', fontSize: '16px', color: '#8fa3b8' })
+      .text(width / 2, height - 126, '', { fontFamily: 'Rajdhani, sans-serif', fontSize: '16px', color: '#8fa3b8' })
+      .setOrigin(0.5);
+
+    this.previewAbility = this.add
+      .text(width / 2, height - 100, '', { fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontStyle: '600', color: '#55b8f6' })
       .setOrigin(0.5);
 
     this._updatePreview();
@@ -131,6 +136,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     if (this.previewName) {
       this.previewName.setText(char.name);
       this.previewDesc.setText(char.description);
+      this.previewAbility.setText(`SPECIAL: ${char.specialName}   ·   PASSIVE: ${char.abilityName} — ${char.abilityDesc}`);
     }
   }
 
