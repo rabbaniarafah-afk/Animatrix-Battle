@@ -295,9 +295,10 @@ export class ArenaScene extends Phaser.Scene {
 
   /**
    * Fires once, on the exact hit that reduces someone to 0 HP: a brief
-   * hit-stop freeze, then a camera zoom/pan into the impact point, plus the
-   * winner striking their victory pose — before handing off to the normal
-   * K.O. overlay.
+   * hit-stop freeze, a quick punchy zoom pulse + white flash (camera snaps
+   * straight back to normal, no lingering zoom or pan so the HUD stays
+   * fully visible), plus the winner striking their victory pose — before
+   * handing off to the normal K.O. overlay.
    */
   _triggerFinishCinematic(winner, loser, point) {
     if (this.finishTriggered) return;
@@ -305,9 +306,22 @@ export class ArenaScene extends Phaser.Scene {
     this.matchOver = true;
 
     this.hitStopUntil = this.time.now + 130;
-    this.cameras.main.zoomTo(1.18, 500, 'Sine.easeOut');
-    this.cameras.main.pan(point.x, this.scale.height / 2, 500, 'Sine.easeOut');
-    screenShake(this, 0.014, 260);
+
+    // Quick zoom punch that snaps right back — not a lasting zoom.
+    this.cameras.main.zoomTo(1.06, 150, 'Cubic.easeOut');
+    this.time.delayedCall(150, () => {
+      this.cameras.main.zoomTo(1, 280, 'Cubic.easeIn');
+    });
+
+    // Full-screen impact flash instead of panning into the hit.
+    const flash = this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, 0xffffff, 0.55)
+      .setOrigin(0)
+      .setDepth(200)
+      .setScrollFactor(0);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 240, onComplete: () => flash.destroy() });
+
+    screenShake(this, 0.01, 200);
     winner.playVictoryPose();
 
     this.time.delayedCall(900, () => {
