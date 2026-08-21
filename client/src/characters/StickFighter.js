@@ -3,7 +3,9 @@ import { getCharacterById } from './CharacterConfig.js';
 import { Hitbox } from '../combat/Hitbox.js';
 import { Hurtbox } from '../combat/Hurtbox.js';
 import { ATTACKS, getSpecialFor } from '../combat/Attack.js';
-import { playPunch, playHeavyPunch, playKick, playSpecial } from '../audio/SFX.js';
+import { getPowerFor } from '../combat/Projectile.js';
+import { playPunch, playHeavyPunch, playKick, playSpecial, playPower, playDoubleJump, playRageActivate } from '../audio/SFX.js';
+import { landingDust, dashTrailStreak, rageEmber } from '../combat/HitEffects.js';
 
 const MOVE_SPEED = 230;
 const RUN_SPEED = 370;
@@ -11,11 +13,15 @@ const ACCEL = 2200;
 const AIR_ACCEL = 1300;
 const FRICTION = 2200;
 const JUMP_VELOCITY = -600;
+const AIR_JUMP_VELOCITY = -520;
 const JUMP_PREP_MS = 70;
 const DASH_SPEED = 560;
 const DASH_MS = 180;
 const DASH_COOLDOWN_MS = 420;
 const MULTI_HIT_GAP_MS = 90; // minimum spacing between hits of a multi-hit special
+const GLIDE_MAX_FALL = 220; // soft-cap on fall speed while holding jump/up in the air
+const RAGE_HEALTH_THRESHOLD = 0.25;
+export const RAGE_DAMAGE_MULT = 1.15;
 
 const BODY_W = 46;
 const BODY_H = 150;
@@ -60,6 +66,10 @@ export class StickFighter {
     this.dashing = false;
     this.dashTimer = 0;
     this.dashCooldown = 0;
+    this.airJumpsUsed = 0;
+    this.powerCooldown = 0;
+    this.isRaging = false;
+    this.rageEmberTimer = 0;
 
     this.health = MAX_HEALTH;
     this.maxHealth = MAX_HEALTH;
@@ -80,6 +90,7 @@ export class StickFighter {
     this.reactionElapsed = 0;
 
     this.lastOpponent = null;
+    this.onProjectile = opts.onProjectile || null;
 
     this.hurtbox = new Hurtbox(this);
 
@@ -129,6 +140,7 @@ export class StickFighter {
   handleInput(keys, opponent) {
     const b = this.body.body;
     const grounded = this.isGrounded;
+    if (grounded) this.airJumpsUsed = 0;
     if (opponent) this.lastOpponent = opponent;
 
     // Hitstun / defeat: physics keeps running (knockback drift, gravity)
@@ -163,6 +175,10 @@ export class StickFighter {
 
     if (this.dashing) {
       b.setVelocityX(this.facing * this.dashSpeed);
+      if (this.scene.time.now - this._lastTrailTime > 40) {
+        this._lastTrailTime = this.scene.time.now;
+        dashTrailStreak(this.scene, this.feetX, this.feetY - 70, this.config.color, this.facing);
+      }
       this._updateTimers();
       return;
     }
@@ -197,6 +213,11 @@ export class StickFighter {
     if (keys.jumpPressed && grounded && !this.jumpPrepping && !this.crouching && !this.blocking) {
       this.jumpPrepping = true;
       this.jumpPrepTimer = 0;
+    } else if (keys.jumpPressed && !grounded && this.airJumpsUsed < 1 && !this.jumpPrepping) {
+      // Double jump — a brief taste of "flight": one extra jump while airborne.
+      b.setVelocityY(AIR_JUMP_VELOCITY);
+      this.airJumpsUsed += 1;
+      playDoubleJump();
     }
     if (this.jumpPrepping) {
       this.jumpPrepTimer += this.scene.game.loop.delta;
@@ -205,6 +226,11 @@ export class StickFighter {
         b.setVelocityY(JUMP_VELOCITY);
         this.jumpPrepping = false;
       }
+    }
+
+    // Glide — holding jump/up while falling softens the descent.
+    if (!grounded && b.velocity.y > 0 && keys.jumpHeld) {
+      b.velocity.y = Math.min(b.velocity.y, GLIDE_MAX_FALL);
     }
 
     // Dash (tap)
@@ -220,9 +246,17 @@ export class StickFighter {
       else if (keys.kick && grounded) this._startAttack('kick');
       else if (keys.dashAttack && grounded && this.dashCooldown <= 0) this._startAttack('dashAttack');
       else if (keys.special && grounded && this.energy >= 100) this._startAttack('special');
+      else if (keys.power && this.powerCooldown <= 0) this._fireProjectile();
     }
 
     this._updateTimers();
+  }
+
+  _fireProjectile() {
+    const config = getPowerFor(this.config.id);
+    this.powerCooldown = config.cooldown;
+    playPower();
+    this.onProjectile?.(this, config);
   }
 
   _startAttack(id) {
@@ -338,6 +372,11 @@ export class StickFighter {
     this.comboResetTimer = hit.hitstun + 550;
     this.gainEnergy(hit.energyGain ?? 0);
 
+    if (!this.isRaging && this.health / this.maxHealth <= RAGE_HEALTH_THRESHOLD) {
+      this.isRaging = true;
+      playRageActivate();
+    }
+
     if (this.health <= 0) {
       this.defeated = true;
       this.defeatElapsed = 0;
@@ -358,6 +397,7 @@ export class StickFighter {
     const dt = this.scene.game.loop.delta;
     if (this.attackCooldown > 0) this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     if (this.dashCooldown > 0) this.dashCooldown = Math.max(0, this.dashCooldown - dt);
+    if (this.powerCooldown > 0) this.powerCooldown = Math.max(0, this.powerCooldown - dt);
 
     if (this.dashing) {
       this.dashTimer += dt;
@@ -415,6 +455,18 @@ export class StickFighter {
     const grounded = this.isGrounded;
     const animState = this._computeAnimState();
 
+    if (!this.wasGrounded && grounded) {
+      landingDust(this.scene, this.feetX, this.feetY, this.config.color);
+    }
+
+    if (this.isRaging && !this.defeated) {
+      this.rageEmberTimer -= dt;
+      if (this.rageEmberTimer <= 0) {
+        this.rageEmberTimer = 220;
+        rageEmber(this.scene, this.feetX, this.feetY - 70, this.config.color);
+      }
+    }
+
     this.anim.update(dt, animState, { feetX: this.feetX, feetY: this.feetY, facing: this.facing });
 
     this.nameLabel.setVisible(!this.defeated && !this.victoryPose);
@@ -451,6 +503,7 @@ export class StickFighter {
       reactionType: this.reactionType,
       reactionElapsed: this.reactionElapsed,
       reactionDuration: this.reactionDuration,
+      isRaging: this.isRaging,
       attack: this.attack ? { id: this.attack.config.id, phase: this.attack.phase, timer: this.attack.timer } : null,
     };
   }
@@ -472,6 +525,7 @@ export class StickFighter {
     this.reactionType = s.reactionType;
     this.reactionElapsed = s.reactionElapsed;
     this.reactionDuration = s.reactionDuration;
+    this.isRaging = !!s.isRaging;
     const cfg = s.attack ? (s.attack.id === 'special' ? getSpecialFor(this.config.id) : ATTACKS[s.attack.id]) : null;
     this.attack = s.attack
       ? { config: cfg, phase: s.attack.phase, timer: s.attack.timer, hitCount: 0, maxHits: cfg.hits || 1, lastHitTime: null }

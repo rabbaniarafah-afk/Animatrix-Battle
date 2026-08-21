@@ -7,6 +7,7 @@ export class MenuScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    this.cameras.main.fadeIn(280, 5, 7, 10);
 
     this._buildBackground(width, height);
     this._buildTitle(width, height);

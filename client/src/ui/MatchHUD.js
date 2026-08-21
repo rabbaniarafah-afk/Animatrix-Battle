@@ -44,21 +44,32 @@ export class MatchHUD {
     this.scene.add
       .text(width / 2, 30, 'VS', { fontFamily: 'Russo One, sans-serif', fontSize: '22px', color: '#f4d232' })
       .setOrigin(0.5);
+
+    // Smoothed display values so the bars visibly drain/fill rather than snapping.
+    this.dispHealth1 = this.f1.health;
+    this.dispHealth2 = this.f2.health;
+    this.dispEnergy1 = this.f1.energy;
+    this.dispEnergy2 = this.f2.energy;
   }
 
   update() {
-    const w1 = Math.max(0, (this.f1.health / this.f1.maxHealth) * (380 - 4));
-    const w2 = Math.max(0, (this.f2.health / this.f2.maxHealth) * (380 - 4));
+    this.dispHealth1 = Phaser.Math.Linear(this.dispHealth1, this.f1.health, 0.18);
+    this.dispHealth2 = Phaser.Math.Linear(this.dispHealth2, this.f2.health, 0.18);
+    this.dispEnergy1 = Phaser.Math.Linear(this.dispEnergy1, this.f1.energy, 0.18);
+    this.dispEnergy2 = Phaser.Math.Linear(this.dispEnergy2, this.f2.energy, 0.18);
+
+    const w1 = Math.max(0, (this.dispHealth1 / this.f1.maxHealth) * (380 - 4));
+    const w2 = Math.max(0, (this.dispHealth2 / this.f2.maxHealth) * (380 - 4));
     this.p1BarFill.width = w1;
     this.p2BarFill.width = w2;
     this.p2BarFill.x = 380 - 2 - w2; // right-anchored so P2's bar drains toward center
 
     const colorFor = (ratio) => (ratio > 0.5 ? 0xe23b3b : ratio > 0.22 ? 0xf4a23b : 0xf4d232);
-    this.p1BarFill.fillColor = colorFor(this.f1.health / this.f1.maxHealth);
-    this.p2BarFill.fillColor = colorFor(this.f2.health / this.f2.maxHealth);
+    this.p1BarFill.fillColor = colorFor(this.dispHealth1 / this.f1.maxHealth);
+    this.p2BarFill.fillColor = colorFor(this.dispHealth2 / this.f2.maxHealth);
 
-    const ew1 = Math.max(0, (this.f1.energy / this.f1.maxEnergy) * (380 - 4));
-    const ew2 = Math.max(0, (this.f2.energy / this.f2.maxEnergy) * (380 - 4));
+    const ew1 = Math.max(0, (this.dispEnergy1 / this.f1.maxEnergy) * (380 - 4));
+    const ew2 = Math.max(0, (this.dispEnergy2 / this.f2.maxEnergy) * (380 - 4));
     this.p1EnFill.width = ew1;
     this.p2EnFill.width = ew2;
     const full1 = this.f1.energy >= this.f1.maxEnergy;

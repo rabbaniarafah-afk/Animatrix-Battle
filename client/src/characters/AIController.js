@@ -37,6 +37,13 @@ export class AIController {
       return;
     }
 
+    // Fire a power blast at range when off cooldown.
+    if (f.powerCooldown <= 0 && dist > ATTACK_RANGE && dist < 500 && Math.random() < 0.35) {
+      plan.attack = 'power';
+      this.currentPlan = plan;
+      return;
+    }
+
     if (lowHealth && dist < 220 && Math.random() < 0.5) {
       plan.move = -dir;
       if (Math.random() < 0.2) plan.jump = true;
@@ -91,6 +98,7 @@ export class AIController {
       down: { isDown: false },
       run: { isDown: Math.abs(p.move) > 0.5 },
       jumpPressed: !!p.jump && justDecided,
+      jumpHeld: !!p.jump,
       blockHeld: !!p.block,
       dashPressed: !!p.dash && justDecided,
       lightPunch: p.attack === 'lightPunch',
@@ -98,6 +106,7 @@ export class AIController {
       kick: p.attack === 'kick',
       dashAttack: p.attack === 'dashAttack',
       special: p.attack === 'special',
+      power: p.attack === 'power',
     };
   }
 }

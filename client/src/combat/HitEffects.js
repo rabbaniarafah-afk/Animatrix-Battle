@@ -100,3 +100,89 @@ export function specialFlash(scene, x, y, color) {
     onComplete: () => flash.destroy(),
   });
 }
+
+/** Small dust puff at the feet when landing from a fall. */
+export function landingDust(scene, x, y, color = 0xd5ecfb) {
+  for (let i = 0; i < 5; i++) {
+    const dir = i % 2 === 0 ? 1 : -1;
+    const spread = (Math.random() * 0.6 + 0.2) * dir;
+    const puff = scene.add.circle(x, y, 4 + Math.random() * 3, color, 0.35).setDepth(8);
+    scene.tweens.add({
+      targets: puff,
+      x: x + spread * 40,
+      y: y - Math.random() * 10,
+      scale: 2.2,
+      alpha: 0,
+      duration: 300 + Math.random() * 120,
+      ease: 'Cubic.easeOut',
+      onComplete: () => puff.destroy(),
+    });
+  }
+}
+
+/** A short motion streak left behind while dashing. */
+export function dashTrailStreak(scene, x, y, color, facing) {
+  const streak = scene.add.rectangle(x, y, 40, 60, color, 0.3).setDepth(7);
+  streak.scaleX = 0.4;
+  scene.tweens.add({
+    targets: streak,
+    x: x - facing * 20,
+    alpha: 0,
+    scaleX: 0.1,
+    duration: 220,
+    ease: 'Cubic.easeOut',
+    onComplete: () => streak.destroy(),
+  });
+}
+
+/** A single faint ember drifting up off a fighter in Rage state. */
+export function rageEmber(scene, x, y, color = 0xe23b3b) {
+  const dx = (Math.random() - 0.5) * 30;
+  const ember = scene.add.circle(x + dx, y, 3 + Math.random() * 2, color, 0.55).setDepth(9);
+  scene.tweens.add({
+    targets: ember,
+    y: y - 50 - Math.random() * 20,
+    x: x + dx * 1.5,
+    alpha: 0,
+    duration: 500 + Math.random() * 200,
+    ease: 'Sine.easeOut',
+    onComplete: () => ember.destroy(),
+  });
+}
+
+/** Small burst when a fired power blast connects. */
+export function powerImpact(scene, x, y, color) {
+  const ring = scene.add.circle(x, y, 6, color, 0).setStrokeStyle(4, color, 1).setDepth(50);
+  scene.tweens.add({
+    targets: ring,
+    scale: 3.2,
+    alpha: { from: 1, to: 0 },
+    duration: 260,
+    ease: 'Cubic.easeOut',
+    onComplete: () => ring.destroy(),
+  });
+  spawnHitSpark(scene, x, y, color, false);
+}
+
+/** Floating damage number popup. */
+export function damageNumber(scene, x, y, amount, big = false) {
+  const text = scene.add
+    .text(x + (Math.random() * 20 - 10), y, `-${Math.round(amount)}`, {
+      fontFamily: 'Russo One, sans-serif',
+      fontSize: big ? '26px' : '18px',
+      color: big ? '#ff6b4a' : '#f4d232',
+      stroke: '#0a0e14',
+      strokeThickness: 3,
+    })
+    .setOrigin(0.5)
+    .setDepth(65);
+
+  scene.tweens.add({
+    targets: text,
+    y: y - 46,
+    alpha: { from: 1, to: 0 },
+    duration: 620,
+    ease: 'Cubic.easeOut',
+    onComplete: () => text.destroy(),
+  });
+}

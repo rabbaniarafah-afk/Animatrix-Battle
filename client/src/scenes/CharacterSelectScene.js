@@ -24,6 +24,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    this.cameras.main.fadeIn(220, 5, 7, 10);
 
     this.add.rectangle(0, 0, width, height, 0x05070a).setOrigin(0);
 

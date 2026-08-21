@@ -152,3 +152,48 @@ export function playBlock() {
   noiseBurst({ duration: 0.09, filterType: 'highpass', freq: 2600, q: 1.5, gain: 0.35 });
   thump({ startFreq: 700, endFreq: 500, duration: 0.07, gain: 0.18, type: 'square' });
 }
+
+/** Power blast fired — a quick rising laser-ish zap. */
+export function playPower() {
+  const c = getContext();
+  if (!c || muted) return;
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  const env = c.createGain();
+  const t0 = c.currentTime;
+  osc.frequency.setValueAtTime(520, t0);
+  osc.frequency.exponentialRampToValueAtTime(1400, t0 + 0.11);
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(0.24, t0 + 0.02);
+  env.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+  osc.connect(env);
+  env.connect(c.destination);
+  osc.start(t0);
+  osc.stop(t0 + 0.16);
+  noiseBurst({ duration: 0.06, filterType: 'highpass', freq: 3000, gain: 0.18 });
+}
+
+/** Double jump — a light airy "flap". */
+export function playDoubleJump() {
+  thump({ startFreq: 420, endFreq: 680, duration: 0.1, gain: 0.22, type: 'sine' });
+  noiseBurst({ duration: 0.06, filterType: 'highpass', freq: 2200, gain: 0.14 });
+}
+
+/** Rage activating — a low ominous rumble swell. */
+export function playRageActivate() {
+  const c = getContext();
+  if (!c || muted) return;
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  const env = c.createGain();
+  const t0 = c.currentTime;
+  osc.frequency.setValueAtTime(60, t0);
+  osc.frequency.linearRampToValueAtTime(85, t0 + 0.4);
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(0.28, t0 + 0.15);
+  env.gain.linearRampToValueAtTime(0, t0 + 0.45);
+  osc.connect(env);
+  env.connect(c.destination);
+  osc.start(t0);
+  osc.stop(t0 + 0.46);
+}

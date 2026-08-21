@@ -1,6 +1,7 @@
 import { rectsOverlap } from './Hitbox.js';
-import { spawnHitSpark, blockSpark, screenShake, comboText, specialFlash } from './HitEffects.js';
+import { spawnHitSpark, blockSpark, screenShake, comboText, specialFlash, damageNumber } from './HitEffects.js';
 import { playHit, playBlock } from '../audio/SFX.js';
+import { RAGE_DAMAGE_MULT } from '../characters/StickFighter.js';
 
 // ---------------------------------------------------------------------------
 // CombatController
@@ -49,6 +50,8 @@ export class CombatController {
     if ((config.id === 'heavyPunch' || isSpecial) && attacker.config.abilities?.heavyDamageMult) {
       damage *= attacker.config.abilities.heavyDamageMult;
     }
+    // Rage: once a fighter drops below the health threshold, their attacks hit harder.
+    if (attacker.isRaging) damage *= RAGE_DAMAGE_MULT;
 
     defender.takeHit({
       damage,
@@ -73,6 +76,7 @@ export class CombatController {
       spawnHitSpark(this.scene, contactX, contactY, attacker.config.color, big);
       screenShake(this.scene, big ? 0.009 : 0.005, big ? 160 : 100);
       playHit({ big });
+      damageNumber(this.scene, contactX, contactY - 20, damage, big);
       if (isSpecial) specialFlash(this.scene, contactX, contactY, attacker.config.color);
       if (defender.comboCounter >= 2) comboText(this.scene, defender.feetX, defender.feetY - 190, defender.comboCounter);
     }
