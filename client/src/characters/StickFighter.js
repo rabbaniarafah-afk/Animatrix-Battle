@@ -198,9 +198,18 @@ export class StickFighter {
       b.setAccelerationX(0);
       b.setDragX(FRICTION * 2.2);
     } else if (moveDir !== 0) {
-      b.setAccelerationX(moveDir * accel);
-      b.setDragX(FRICTION * 0.4);
-      b.maxVelocity.x = maxSpeed;
+      if (grounded) {
+        // Ground movement snaps straight to top speed the instant a
+        // direction is held — no ramp-up, so key press == immediate motion.
+        b.setAccelerationX(0);
+        b.setDragX(0);
+        b.setVelocityX(moveDir * maxSpeed);
+      } else {
+        // Airborne movement keeps a short accelerate-in for a natural jump arc.
+        b.setAccelerationX(moveDir * accel);
+        b.setDragX(FRICTION * 0.4);
+        b.maxVelocity.x = maxSpeed;
+      }
       this.facing = moveDir;
     } else {
       b.setAccelerationX(0);
