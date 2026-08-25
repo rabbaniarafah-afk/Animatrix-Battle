@@ -125,6 +125,11 @@ export class ArenaScene extends Phaser.Scene {
     };
 
     this.escKey = kb.addKey('ESC');
+
+    // Dev/testing shortcut: instantly fills both fighters' energy bars so
+    // specials can be tested without fighting for 10-20 seconds each time.
+    // Not part of normal gameplay — safe to remove later if you want.
+    this.debugFillEnergyKey = kb.addKey('M');
   }
 
   _emptyKeys() {
@@ -461,6 +466,17 @@ export class ArenaScene extends Phaser.Scene {
   update(time, delta) {
     if (Phaser.Input.Keyboard.JustDown(this.escKey) && !this.matchOver) {
       this._togglePause();
+    }
+
+    // Dev/testing shortcut — press M to instantly max both energy bars.
+    // Works in Quick Battle and Local Battle. In Online Battle it only
+    // takes effect on the host, since the guest's state is overwritten by
+    // the host's snapshots each tick.
+    if (Phaser.Input.Keyboard.JustDown(this.debugFillEnergyKey) && !this.matchOver) {
+      if (!this.isOnline || this.isHost) {
+        this.player1.energy = this.player1.maxEnergy;
+        this.player2.energy = this.player2.maxEnergy;
+      }
     }
 
     if (this.paused) return;
