@@ -45,10 +45,14 @@ export class CombatController {
     const config = attacker.attack.config;
     const isSpecial = config.id === 'special';
 
-    // Barbarian's "Bruiser" passive: heavy punch and special hit harder.
+    // Barbarian's "Skybound Bruiser" passive: heavy punch and special hit harder.
     let damage = config.damage;
     if ((config.id === 'heavyPunch' || isSpecial) && attacker.config.abilities?.heavyDamageMult) {
       damage *= attacker.config.abilities.heavyDamageMult;
+    }
+    // Gothliotic's "Featherweight" passive: kicks hit harder.
+    if (config.id === 'kick' && attacker.config.abilities?.kickDamageMult) {
+      damage *= attacker.config.abilities.kickDamageMult;
     }
     // Rage: once a fighter drops below the health threshold, their attacks hit harder.
     if (attacker.isRaging) damage *= RAGE_DAMAGE_MULT;

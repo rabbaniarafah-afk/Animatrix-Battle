@@ -152,9 +152,10 @@ export class AnimationController {
     this.current = blendPose(this.current, target, smoothRate);
 
     const dir = transform.facing >= 0 ? 1 : -1;
+    const scale = transform.scale ?? 1;
     this.rig.setPosition(transform.feetX, transform.feetY);
     this.rig.setRotation(this.current.lean * dir);
-    this.rig.setScale(dir, 1);
+    this.rig.setScale(dir * scale, scale);
 
     this.lastSkeleton = drawRig(this.rig, this.current, this.color, this.outline);
 
@@ -162,7 +163,7 @@ export class AnimationController {
       const headWorld = this._localToWorld(this.lastSkeleton.head, dir);
       this.headImage.setPosition(headWorld.x, headWorld.y);
       this.headImage.setRotation(this.rig.rotation);
-      this.headImage.setScale(this.headScale * dir, this.headScale);
+      this.headImage.setScale(this.headScale * dir * scale, this.headScale * scale);
     }
   }
 
@@ -170,8 +171,9 @@ export class AnimationController {
   _localToWorld(p, dir) {
     const cos = Math.cos(this.rig.rotation);
     const sin = Math.sin(this.rig.rotation);
-    const x = p.x * dir * cos - p.y * sin;
-    const y = p.x * dir * sin + p.y * cos;
+    const s = this.rig.scaleY; // size-scale magnitude (Y axis never flips sign, unlike X)
+    const x = (p.x * dir * cos - p.y * sin) * s;
+    const y = (p.x * dir * sin + p.y * cos) * s;
     return { x: this.rig.x + x, y: this.rig.y + y };
   }
 

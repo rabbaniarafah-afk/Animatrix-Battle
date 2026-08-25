@@ -3,7 +3,7 @@ import { getCharacterById } from './CharacterConfig.js';
 import { Hitbox } from '../combat/Hitbox.js';
 import { Hurtbox } from '../combat/Hurtbox.js';
 import { ATTACKS, getSpecialFor } from '../combat/Attack.js';
-import { getPowerFor } from '../combat/Projectile.js';
+import { getPowerFor, getSpecialProjectileFor } from '../combat/Projectile.js';
 import { playPunch, playHeavyPunch, playKick, playSpecial, playPower, playDoubleJump, playRageActivate } from '../audio/SFX.js';
 import { landingDust, dashTrailStreak, rageEmber } from '../combat/HitEffects.js';
 
@@ -20,6 +20,10 @@ const DASH_MS = 180;
 const DASH_COOLDOWN_MS = 420;
 const MULTI_HIT_GAP_MS = 90; // minimum spacing between hits of a multi-hit special
 const GLIDE_MAX_FALL = 220; // soft-cap on fall speed while holding jump/up in the air
+const FLIGHT_THRUST = 1400; // upward acceleration (px/s^2) while flight-thrusting
+const FLIGHT_MAX_RISE = 340; // max upward speed while flying
+const FLIGHT_FUEL_MAX = 900; // ms of flight fuel
+const FLIGHT_REGEN_RATE = 1.3; // fuel refill rate multiplier while grounded
 const RAGE_HEALTH_THRESHOLD = 0.25;
 export const RAGE_DAMAGE_MULT = 1.15;
 
@@ -70,6 +74,15 @@ export class StickFighter {
     this.powerCooldown = 0;
     this.isRaging = false;
     this.rageEmberTimer = 0;
+
+    // Flight (Barbarian passive) — hold jump/up while airborne to thrust
+    // upward on a fuel meter that refills while grounded.
+    this.canFly = this._ability('canFly', false);
+    this.flightFuel = FLIGHT_FUEL_MAX;
+
+    // Size scale (Gosths passive/special, and Yellow's haymaker impact) —
+    // multiplies the visual rig and hurtbox; 1 = normal size.
+    this.sizeScale = 1;
 
     this.health = MAX_HEALTH;
     this.maxHealth = MAX_HEALTH;
@@ -242,6 +255,18 @@ export class StickFighter {
       b.velocity.y = Math.min(b.velocity.y, GLIDE_MAX_FALL);
     }
 
+    // Flight (Barbarian passive) — holding jump/up while airborne thrusts
+    // him upward, burning a fuel meter that refills while he's grounded.
+    if (this.canFly) {
+      const dt = this.scene.game.loop.delta;
+      if (grounded) {
+        this.flightFuel = Math.min(FLIGHT_FUEL_MAX, this.flightFuel + dt * FLIGHT_REGEN_RATE);
+      } else if (keys.jumpHeld && this.flightFuel > 0) {
+        b.setVelocityY(Math.max(b.velocity.y - FLIGHT_THRUST * (dt / 1000), -FLIGHT_MAX_RISE));
+        this.flightFuel = Math.max(0, this.flightFuel - dt);
+      }
+    }
+
     // Dash (tap)
     if (keys.dashPressed && grounded && this.dashCooldown <= 0 && !this.crouching && !this.blocking) {
       this.dashing = true;
@@ -316,6 +341,11 @@ export class StickFighter {
 
   /** One-time special-move effects triggered right as the active (hit) window begins. */
   _applySpecialMechanics(config) {
+    if (config.fireLaser) {
+      const laserConfig = getSpecialProjectileFor(this.config.id);
+      if (laserConfig) this.onProjectile?.(this, laserConfig);
+    }
+
     const opp = this.lastOpponent;
     if (!opp || opp.defeated) return;
 
@@ -460,9 +490,34 @@ export class StickFighter {
     return { kind: 'idle' };
   }
 
+  /**
+   * Drives `sizeScale` toward a target each frame:
+   *  - Gosths' "shrink while guarding" passive makes him smaller (harder to
+   *    hit) while crouching or blocking.
+   *  - A special move with `growPulse` (Gosths' Colossal Grasp, Yellow's
+   *    Massive Haymaker) grows the fighter during its startup/active phase,
+   *    then eases back to normal size during recovery.
+   * Smoothly interpolated so the size change reads as a squash/grow, not a pop.
+   */
+  _updateSizeScale(dt) {
+    let target = 1;
+
+    if (this._ability('shrinkWhenGuarding', false) && (this.crouching || this.blocking)) {
+      target = 0.8;
+    }
+
+    if (this.attack?.config?.growPulse && this.attack.phase !== 'recovery') {
+      target = this.attack.config.growPulse;
+    }
+
+    const rate = Phaser.Math.Clamp(dt / 160, 0, 1);
+    this.sizeScale = Phaser.Math.Linear(this.sizeScale, target, rate);
+  }
+
   update(dt) {
     const grounded = this.isGrounded;
     const animState = this._computeAnimState();
+    this._updateSizeScale(dt);
 
     if (!this.wasGrounded && grounded) {
       landingDust(this.scene, this.feetX, this.feetY, this.config.color);
@@ -476,7 +531,7 @@ export class StickFighter {
       }
     }
 
-    this.anim.update(dt, animState, { feetX: this.feetX, feetY: this.feetY, facing: this.facing });
+    this.anim.update(dt, animState, { feetX: this.feetX, feetY: this.feetY, facing: this.facing, scale: this.sizeScale });
 
     this.nameLabel.setVisible(!this.defeated && !this.victoryPose);
     this.nameLabel.x = this.feetX;
@@ -513,6 +568,7 @@ export class StickFighter {
       reactionElapsed: this.reactionElapsed,
       reactionDuration: this.reactionDuration,
       isRaging: this.isRaging,
+      sizeScale: this.sizeScale,
       attack: this.attack ? { id: this.attack.config.id, phase: this.attack.phase, timer: this.attack.timer } : null,
     };
   }
@@ -535,6 +591,7 @@ export class StickFighter {
     this.reactionElapsed = s.reactionElapsed;
     this.reactionDuration = s.reactionDuration;
     this.isRaging = !!s.isRaging;
+    this.sizeScale = s.sizeScale ?? 1;
     const cfg = s.attack ? (s.attack.id === 'special' ? getSpecialFor(this.config.id) : ATTACKS[s.attack.id]) : null;
     this.attack = s.attack
       ? { config: cfg, phase: s.attack.phase, timer: s.attack.timer, hitCount: 0, maxHits: cfg.hits || 1, lastHitTime: null }

@@ -125,23 +125,23 @@ export const ATTACKS = {
 export const SPECIALS_BY_CHARACTER = {
   yellow: {
     id: 'special',
-    name: 'RAPID RUSH',
+    name: 'MASSIVE HAYMAKER',
     poseWindup: 'yellowSpecialWindup',
     poseStrike: 'yellowSpecialStrike',
-    startup: 260,
-    active: 220,
-    recovery: 320,
-    damage: 13, // per hit
-    hits: 2, // twin-hit flurry
-    knockback: 260,
-    knockbackUp: -140,
-    hitstun: 300,
-    range: 92,
-    reachY: -68,
-    height: 48,
-    cooldown: 260,
+    startup: 340, // longer wind-up — telegraphs a single enormous swing
+    active: 160,
+    recovery: 400,
+    damage: 40, // one huge hit instead of the old twin-hit flurry
+    knockback: 540,
+    knockbackUp: -220,
+    hitstun: 560,
+    range: 130,
+    reachY: -66,
+    height: 62,
+    cooldown: 320,
     requiresGrounded: true,
     energyCost: 100,
+    growPulse: 1.22, // briefly scales him up for a "putting his whole body into it" impact
   },
   barbarian: {
     id: 'special',
@@ -151,7 +151,7 @@ export const SPECIALS_BY_CHARACTER = {
     startup: 420,
     active: 150,
     recovery: 420,
-    damage: 32,
+    damage: 36,
     knockback: 500,
     knockbackUp: -180,
     hitstun: 560,
@@ -165,23 +165,23 @@ export const SPECIALS_BY_CHARACTER = {
   },
   shadowlord: {
     id: 'special',
-    name: 'SHADOW DASH',
+    name: 'VOID LASER',
     poseWindup: 'shadowlordSpecialWindup',
     poseStrike: 'shadowlordSpecialStrike',
     startup: 240,
     active: 140,
     recovery: 300,
-    damage: 24,
-    knockback: 420,
-    knockbackUp: -180,
-    hitstun: 480,
+    damage: 18, // the close-range melee hit, in case the opponent is already in his face
+    knockback: 340,
+    knockbackUp: -140,
+    hitstun: 420,
     range: 90,
     reachY: -60,
     height: 50,
     cooldown: 280,
     requiresGrounded: true,
     energyCost: 100,
-    teleportBehind: true, // blinks behind the opponent right before striking
+    fireLaser: true, // also fires a full-screen piercing laser beam — see Projectile.js
   },
   gothliotic: {
     id: 'special',
@@ -204,23 +204,24 @@ export const SPECIALS_BY_CHARACTER = {
   },
   gosths: {
     id: 'special',
-    name: 'VOID GRASP',
+    name: 'COLOSSAL GRASP',
     poseWindup: 'gosthsSpecialWindup',
     poseStrike: 'gosthsSpecialStrike',
     startup: 320,
     active: 150,
     recovery: 360,
-    damage: 28,
-    knockback: 440,
-    knockbackUp: -200,
+    damage: 34,
+    knockback: 520,
+    knockbackUp: -220,
     hitstun: 500,
-    range: 96,
-    reachY: -64,
-    height: 50,
+    range: 110,
+    reachY: -70,
+    height: 60,
     cooldown: 300,
     requiresGrounded: true,
     energyCost: 100,
     pullOpponent: true, // yanks the opponent in close before the hit lands
+    growPulse: 1.55, // grows him massive for the grasp — see StickFighter sizeScale
   },
 };
 

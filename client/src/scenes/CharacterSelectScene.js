@@ -126,7 +126,14 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.previewAbility = this.add
-      .text(width / 2, height - 100, '', { fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontStyle: '600', color: '#55b8f6' })
+      .text(width / 2, height - 100, '', {
+        fontFamily: 'Rajdhani, sans-serif',
+        fontSize: '14px',
+        fontStyle: '600',
+        color: '#55b8f6',
+        align: 'center',
+        wordWrap: { width: Math.min(720, width - 120) },
+      })
       .setOrigin(0.5);
 
     this._updatePreview();

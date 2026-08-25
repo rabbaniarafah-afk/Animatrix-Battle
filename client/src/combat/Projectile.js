@@ -18,6 +18,30 @@ export function getPowerFor(characterId) {
   return POWER_BY_CHARACTER[characterId] || POWER_BY_CHARACTER.yellow;
 }
 
+// ---------------------------------------------------------------------------
+// Special-move projectiles — fired as part of a character's special attack
+// (not the generic Power Blast). Currently just Shadowlord's laser beam.
+// `beam: true` switches Projectile into beam mode (see below): instead of
+// traveling like a blob, it draws instantly as a long rectangle in front of
+// the shooter and disappears after `beamLife` ms.
+// ---------------------------------------------------------------------------
+const SPECIAL_PROJECTILES = {
+  shadowlord: {
+    damage: 22,
+    radius: 13,
+    color: 0xb46bff,
+    knockback: 380,
+    knockbackUp: -80,
+    beam: true,
+    length: 900,
+    beamLife: 240,
+  },
+};
+
+export function getSpecialProjectileFor(characterId) {
+  return SPECIAL_PROJECTILES[characterId] || null;
+}
+
 export class Projectile {
   constructor(scene, x, y, dir, config, ownerColor) {
     this.scene = scene;
@@ -28,6 +52,7 @@ export class Projectile {
 
     this.x = x;
     this.y = y;
+    this.beamLife = config.beam ? (config.beamLife ?? 220) : null;
 
     this.gfx = scene.add.graphics().setDepth(15);
     this._draw();
@@ -39,6 +64,21 @@ export class Projectile {
   _draw() {
     const g = this.gfx;
     g.clear();
+
+    if (this.config.beam) {
+      const len = this.config.length ?? 700;
+      const thickness = this.config.radius * 2;
+      const x0 = this.dir > 0 ? this.x : this.x - len;
+      const fade = this.beamLife != null ? Phaser.Math.Clamp(this.beamLife / (this.config.beamLife ?? 220), 0, 1) : 1;
+      g.fillStyle(this.config.color, 0.55 * fade);
+      g.fillRect(x0, this.y - thickness, len, thickness * 2);
+      g.fillStyle(this.config.color, 0.9 * fade);
+      g.fillRect(x0, this.y - thickness / 2, len, thickness);
+      g.fillStyle(0xffffff, 0.85 * fade);
+      g.fillRect(x0, this.y - thickness * 0.15, len, thickness * 0.3);
+      return;
+    }
+
     g.fillStyle(this.config.color, 1);
     g.fillCircle(this.x, this.y, this.config.radius);
     g.fillStyle(0xffffff, 0.7);
@@ -46,12 +86,26 @@ export class Projectile {
   }
 
   getRect() {
+    if (this.config.beam) {
+      const len = this.config.length ?? 700;
+      const thickness = this.config.radius * 2;
+      const x0 = this.dir > 0 ? this.x : this.x - len;
+      return { left: x0, right: x0 + len, top: this.y - thickness / 2, bottom: this.y + thickness / 2 };
+    }
     const r = this.config.radius;
     return { left: this.x - r, right: this.x + r, top: this.y - r, bottom: this.y + r };
   }
 
   update(dt, bounds) {
     if (!this.alive) return;
+
+    if (this.config.beam) {
+      this.beamLife -= dt;
+      this._draw();
+      if (this.beamLife <= 0) this.destroy();
+      return;
+    }
+
     this.x += this.dir * this.config.speed * (dt / 1000);
     this._draw();
 

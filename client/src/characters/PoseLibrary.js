@@ -161,7 +161,7 @@ export const POSES = {
     legFront: [28, 10], legBack: [4, 6],
   }),
 
-  // --- Yellow: RAPID RUSH (twin-hit flurry) -----------------------------
+  // --- Yellow: MASSIVE HAYMAKER (single huge swing, grows on impact) ----
   yellowSpecialWindup: pose({
     hipDrop: -4, lean: -20,
     armFront: [-50, 90], armBack: [-40, 90],
@@ -185,7 +185,7 @@ export const POSES = {
     legFront: [30, 34], legBack: [-8, 24],
   }),
 
-  // --- Shadowlord: SHADOW DASH (teleport-through strike) -----------------
+  // --- Shadowlord: VOID LASER (windup for the melee hit + laser beam) ----
   shadowlordSpecialWindup: pose({
     hipDrop: -4, lean: -16, headTilt: -12,
     armFront: [-30, 20], armBack: [30, 20],
@@ -209,7 +209,7 @@ export const POSES = {
     legFront: [16, 8], legBack: [-6, 6],
   }),
 
-  // --- Gosths: VOID GRASP (pull-in choke strike) --------------------------
+  // --- Gosths: COLOSSAL GRASP (pull-in choke strike, grows massive) ------
   gosthsSpecialWindup: pose({
     hipDrop: -2, lean: -18,
     armFront: [-60, 70], armBack: [10, 20],

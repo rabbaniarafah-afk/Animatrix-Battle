@@ -13,9 +13,10 @@ export class Hurtbox {
     const feetX = this.owner.feetX;
     const feetY = this.owner.feetY;
     const crouched = this.owner.crouching || this.owner.blocking;
+    const scale = this.owner.sizeScale ?? 1;
 
-    const halfW = 22;
-    const height = crouched ? 92 : 128;
+    const halfW = 22 * scale;
+    const height = (crouched ? 92 : 128) * scale;
 
     return {
       left: feetX - halfW,
