@@ -43,7 +43,7 @@ export class CombatController {
 
     const blocked = defender.blocking;
     const config = attacker.attack.config;
-    const isSpecial = config.id === 'special';
+    const isSpecial = config.id === 'special' || config.id === 'ultimate';
 
     // Barbarian's "Skybound Bruiser" passive: heavy punch and special hit harder.
     let damage = config.damage;

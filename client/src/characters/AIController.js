@@ -30,6 +30,13 @@ export class AIController {
 
     const plan = { move: 0, jump: false, block: false, dash: false, attack: null };
 
+    // Unleash the Ultimate when it's available (full energy + low health) — a comeback finisher.
+    if (lowHealth && f.energy >= f.maxEnergy && dist < ATTACK_RANGE + 30 && Math.random() < 0.65) {
+      plan.attack = 'ultimate';
+      this.currentPlan = plan;
+      return;
+    }
+
     // Occasionally unleash the special once energy is full.
     if (f.energy >= f.maxEnergy && dist < ATTACK_RANGE + 30 && Math.random() < 0.5) {
       plan.attack = 'special';
@@ -106,6 +113,7 @@ export class AIController {
       kick: p.attack === 'kick',
       dashAttack: p.attack === 'dashAttack',
       special: p.attack === 'special',
+      ultimate: p.attack === 'ultimate',
       power: p.attack === 'power',
     };
   }

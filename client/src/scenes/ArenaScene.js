@@ -27,6 +27,13 @@ export class ArenaScene extends Phaser.Scene {
     this.p2Id = window.ANIMATRIX.selection.player2 || CHARACTERS.find((c) => c.id !== this.p1Id)?.id || CHARACTERS[0].id;
 
     this.arenaConfig = getArenaById(window.ANIMATRIX.selectedArena) || ARENA1;
+
+    // Round system — best of 3: first to 2 round wins takes the match.
+    // Scores are passed back in through scene.start() data so they survive
+    // the scene restart between rounds (see _triggerFinishCinematic).
+    this.roundsToWin = 2;
+    this.p1Wins = data?.p1Wins || 0;
+    this.p2Wins = data?.p2Wins || 0;
   }
 
   create() {
@@ -74,6 +81,7 @@ export class ArenaScene extends Phaser.Scene {
     const onFinish = (winner, loser, point) => this._triggerFinishCinematic(winner, loser, point);
     this.combat = new CombatController(this, this.player1, this.player2, { onHit, onFinish });
     this.hud = new MatchHUD(this, this.player1, this.player2);
+    this.hud.setRoundWins(this.p1Wins, this.p2Wins, this.roundsToWin);
 
     this._setupInput();
     this._buildControlsHint();
@@ -108,6 +116,7 @@ export class ArenaScene extends Phaser.Scene {
       kick: kb.addKey('L'),
       dashAttack: kb.addKey('U'),
       special: kb.addKey('I'),
+      ultimate: kb.addKey('O'),
       power: kb.addKey('P'),
     };
     this.cursors = kb.createCursorKeys();
@@ -120,6 +129,7 @@ export class ArenaScene extends Phaser.Scene {
       kick: kb.addKey('THREE'),
       dashAttack: kb.addKey('FOUR'),
       special: kb.addKey('ZERO'),
+      ultimate: kb.addKey('NINE'),
       power: kb.addKey('FIVE'),
       run: kb.addKey('FORWARD_SLASH'),
     };
@@ -147,6 +157,7 @@ export class ArenaScene extends Phaser.Scene {
       kick: false,
       dashAttack: false,
       special: false,
+      ultimate: false,
       power: false,
     };
   }
@@ -154,9 +165,9 @@ export class ArenaScene extends Phaser.Scene {
   _buildControlsHint() {
     const { width, height } = this.scale;
     const p1Hint =
-      'P1: A/D move · W jump(x2) · S crouch · SHIFT run · B block · SPACE dash · J/K/L punch/heavy/kick · U dash-atk · I special · P power';
+      'P1: A/D move · W jump(x2) · S crouch · SHIFT run · B block · SPACE dash · J/K/L punch/heavy/kick · U dash-atk · I special · O ultimate(low HP) · P power';
     const p2Hint =
-      "P2: ←/→ move · ↑ jump(x2) · ↓ crouch · / run · ' block · . dash · 1/2/3 punch/heavy/kick · 4 dash-atk · 0 special · 5 power";
+      "P2: ←/→ move · ↑ jump(x2) · ↓ crouch · / run · ' block · . dash · 1/2/3 punch/heavy/kick · 4 dash-atk · 0 special · 9 ultimate(low HP) · 5 power";
 
     this.add
       .text(width / 2, height - (this.isLocal ? 34 : 20), p1Hint, {
@@ -207,6 +218,7 @@ export class ArenaScene extends Phaser.Scene {
       kick: this.keys1.kick.isDown,
       dashAttack: this.keys1.dashAttack.isDown,
       special: this.keys1.special.isDown,
+      ultimate: this.keys1.ultimate.isDown,
       power: this.keys1.power.isDown,
     };
   }
@@ -229,6 +241,7 @@ export class ArenaScene extends Phaser.Scene {
       kick: this.keys2.kick.isDown,
       dashAttack: this.keys2.dashAttack.isDown,
       special: this.keys2.special.isDown,
+      ultimate: this.keys2.ultimate.isDown,
       power: this.keys2.power.isDown,
     };
   }
@@ -315,8 +328,8 @@ export class ArenaScene extends Phaser.Scene {
 
     net.on('matchEvent', (evt) => {
       if (this.isHost) return;
-      if (evt.type === 'rematch') {
-        this.scene.start('ArenaScene', { mode: this.mode });
+      if (evt.type === 'continue') {
+        this.scene.start('ArenaScene', { mode: this.mode, p1Wins: evt.p1Wins, p2Wins: evt.p2Wins });
         return;
       }
       if (evt.type === 'power') {
@@ -431,6 +444,14 @@ export class ArenaScene extends Phaser.Scene {
     this.finishTriggered = true;
     this.matchOver = true;
 
+    // Round system: credit the winner's round, and figure out if that
+    // clinches the whole match (first to `roundsToWin`) or just this round.
+    const winnerIsP1 = winner === this.player1;
+    if (winnerIsP1) this.p1Wins += 1;
+    else this.p2Wins += 1;
+    this.hud.setRoundWins(this.p1Wins, this.p2Wins, this.roundsToWin);
+    const matchWon = (winnerIsP1 ? this.p1Wins : this.p2Wins) >= this.roundsToWin;
+
     this.hitStopUntil = this.time.now + 130;
 
     this.cameras.main.zoomTo(1.06, 150, 'Cubic.easeOut');
@@ -451,9 +472,16 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(900, () => {
       this.hud.showKO(
         winner,
+        { matchWon, p1Wins: this.p1Wins, p2Wins: this.p2Wins, roundsToWin: this.roundsToWin },
         () => {
-          if (this.isOnline && this.isHost) window.ANIMATRIX.network.sendEvent({ type: 'rematch' });
-          this.scene.start('ArenaScene', { mode: this.mode });
+          // Match decided → score resets to 0-0 for a fresh rematch.
+          // Round won but match still open → carry the score into the next round.
+          const nextP1Wins = matchWon ? 0 : this.p1Wins;
+          const nextP2Wins = matchWon ? 0 : this.p2Wins;
+          if (this.isOnline && this.isHost) {
+            window.ANIMATRIX.network.sendEvent({ type: 'continue', p1Wins: nextP1Wins, p2Wins: nextP2Wins });
+          }
+          this.scene.start('ArenaScene', { mode: this.mode, p1Wins: nextP1Wins, p2Wins: nextP2Wins });
         },
         () => {
           window.ANIMATRIX.network?.disconnect();

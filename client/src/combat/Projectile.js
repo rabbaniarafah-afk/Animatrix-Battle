@@ -42,6 +42,28 @@ export function getSpecialProjectileFor(characterId) {
   return SPECIAL_PROJECTILES[characterId] || null;
 }
 
+// ---------------------------------------------------------------------------
+// Ultimate-tier projectiles — bigger, stronger versions fired by Ultimate
+// moves (see ULTIMATES_BY_CHARACTER in Attack.js). Currently just
+// Shadowlord's Abyssal Beam: a wider, longer-lasting, harder-hitting laser.
+// ---------------------------------------------------------------------------
+const ULTIMATE_PROJECTILES = {
+  shadowlord: {
+    damage: 32,
+    radius: 20,
+    color: 0xd48bff,
+    knockback: 460,
+    knockbackUp: -100,
+    beam: true,
+    length: 1100,
+    beamLife: 320,
+  },
+};
+
+export function getUltimateProjectileFor(characterId) {
+  return ULTIMATE_PROJECTILES[characterId] || null;
+}
+
 export class Projectile {
   constructor(scene, x, y, dir, config, ownerColor) {
     this.scene = scene;

@@ -1,5 +1,6 @@
 import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
+import { SettingsScene } from './scenes/SettingsScene.js';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene.js';
 import { ArenaSelectScene } from './scenes/ArenaSelectScene.js';
 import { ArenaScene } from './scenes/ArenaScene.js';
@@ -30,7 +31,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, CharacterSelectScene, ArenaSelectScene, ArenaScene, OnlineScene],
+  scene: [BootScene, MenuScene, SettingsScene, CharacterSelectScene, ArenaSelectScene, ArenaScene, OnlineScene],
 };
 
 window.ANIMATRIX = window.ANIMATRIX || {

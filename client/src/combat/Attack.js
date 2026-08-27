@@ -225,6 +225,125 @@ export const SPECIALS_BY_CHARACTER = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Ultimates — a second, harder-hitting special per character. Unlike the
+// regular special (needs full energy only), an Ultimate needs full energy
+// AND low health (`requiresLowHealth`) — a proper desperation finisher for
+// when you're on the ropes. Bound to a separate key (see ArenaScene.js).
+// ---------------------------------------------------------------------------
+export const ULTIMATES_BY_CHARACTER = {
+  yellow: {
+    id: 'ultimate',
+    name: 'APOCALYPSE HAYMAKER',
+    poseWindup: 'yellowSpecialWindup',
+    poseStrike: 'yellowSpecialStrike',
+    startup: 300,
+    active: 170,
+    recovery: 380,
+    damage: 58,
+    knockback: 620,
+    knockbackUp: -260,
+    hitstun: 620,
+    range: 140,
+    reachY: -66,
+    height: 66,
+    cooldown: 400,
+    requiresGrounded: true,
+    requiresLowHealth: true,
+    energyCost: 100,
+    growPulse: 1.35,
+  },
+  barbarian: {
+    id: 'ultimate',
+    name: 'SKY CRUSHER',
+    poseWindup: 'barbarianSpecialWindup',
+    poseStrike: 'barbarianSpecialStrike',
+    startup: 360,
+    active: 160,
+    recovery: 400,
+    damage: 50,
+    knockback: 600,
+    knockbackUp: -260,
+    hitstun: 600,
+    range: 120,
+    reachY: -44,
+    height: 64,
+    cooldown: 420,
+    requiresGrounded: true,
+    requiresLowHealth: true,
+    energyCost: 100,
+    groundPound: true,
+  },
+  shadowlord: {
+    id: 'ultimate',
+    name: 'ABYSSAL BEAM',
+    poseWindup: 'shadowlordSpecialWindup',
+    poseStrike: 'shadowlordSpecialStrike',
+    startup: 260,
+    active: 160,
+    recovery: 340,
+    damage: 26,
+    knockback: 420,
+    knockbackUp: -160,
+    hitstun: 480,
+    range: 96,
+    reachY: -60,
+    height: 54,
+    cooldown: 400,
+    requiresGrounded: true,
+    requiresLowHealth: true,
+    energyCost: 100,
+    fireLaser: true, // a much bigger beam than his regular special — see Projectile.js
+  },
+  gothliotic: {
+    id: 'ultimate',
+    name: 'HYPER BLITZ',
+    poseWindup: 'gothlioticSpecialWindup',
+    poseStrike: 'gothlioticSpecialStrike',
+    startup: 130,
+    active: 120,
+    recovery: 300,
+    damage: 13, // per hit
+    hits: 4, // rapid multi-kick barrage
+    knockback: 300,
+    knockbackUp: -140,
+    hitstun: 340,
+    range: 92,
+    reachY: -66,
+    height: 46,
+    cooldown: 400,
+    requiresGrounded: true,
+    requiresLowHealth: true,
+    energyCost: 100,
+  },
+  gosths: {
+    id: 'ultimate',
+    name: 'ABYSS COLLAPSE',
+    poseWindup: 'gosthsSpecialWindup',
+    poseStrike: 'gosthsSpecialStrike',
+    startup: 300,
+    active: 160,
+    recovery: 380,
+    damage: 48,
+    knockback: 620,
+    knockbackUp: -260,
+    hitstun: 560,
+    range: 118,
+    reachY: -70,
+    height: 66,
+    cooldown: 420,
+    requiresGrounded: true,
+    requiresLowHealth: true,
+    energyCost: 100,
+    pullOpponent: true,
+    growPulse: 1.8,
+  },
+};
+
+export function getUltimateFor(characterId) {
+  return ULTIMATES_BY_CHARACTER[characterId] || ATTACKS.special;
+}
+
 export function getSpecialFor(characterId) {
   return SPECIALS_BY_CHARACTER[characterId] || ATTACKS.special;
 }

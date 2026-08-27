@@ -45,11 +45,22 @@ export class MatchHUD {
       .text(width / 2, 30, 'VS', { fontFamily: 'Russo One, sans-serif', fontSize: '22px', color: '#f4d232' })
       .setOrigin(0.5);
 
+    // Round-win pips (best of 3) get appended to each player's name text.
+    this.p1BaseName = this.f1.config.name;
+    this.p2BaseName = this.f2.config.name;
+
     // Smoothed display values so the bars visibly drain/fill rather than snapping.
     this.dispHealth1 = this.f1.health;
     this.dispHealth2 = this.f2.health;
     this.dispEnergy1 = this.f1.energy;
     this.dispEnergy2 = this.f2.energy;
+  }
+
+  /** Renders round-win pips (e.g. "●○") after each player's name — call whenever the score changes. */
+  setRoundWins(p1Wins, p2Wins, roundsToWin) {
+    const pips = (wins) => '●'.repeat(wins) + '○'.repeat(Math.max(0, roundsToWin - wins));
+    this.p1Name.setText(`${this.p1BaseName}  ${pips(p1Wins)}`);
+    this.p2Name.setText(`${pips(p2Wins)}  ${this.p2BaseName}`);
   }
 
   update() {
@@ -141,10 +152,11 @@ export class MatchHUD {
     showNext();
   }
 
-  /** Winner banner with REMATCH / MAIN MENU buttons. */
-  showKO(winnerFighter, onRematch, onMenu) {
+  /** Winner banner — "ROUND WON" + NEXT ROUND if the match continues, or "WINS THE MATCH" + REMATCH if it's decided. */
+  showKO(winnerFighter, roundInfo, onContinue, onMenu) {
     const { width, height } = this.scene.scale;
     const scene = this.scene;
+    const { matchWon, p1Wins, p2Wins, roundsToWin } = roundInfo;
 
     const overlay = scene.add.rectangle(0, 0, width, height, 0x000000, 0).setOrigin(0);
     scene.tweens.add({ targets: overlay, fillAlpha: 0.55, duration: 300 });
@@ -156,22 +168,40 @@ export class MatchHUD {
       .setAlpha(0);
     scene.tweens.add({ targets: ko, scale: 1, alpha: 1, duration: 350, ease: 'Back.easeOut' });
 
+    const winnerLine = matchWon
+      ? `${winnerFighter.config.name} WINS THE MATCH!`
+      : `${winnerFighter.config.name} WINS THE ROUND! (${p1Wins}-${p2Wins})`;
+
     const winner = scene.add
-      .text(width / 2, height / 2 - 20, `${winnerFighter.config.name} WINS!`, {
+      .text(width / 2, height / 2 - 20, winnerLine, {
         fontFamily: 'Russo One, sans-serif',
-        fontSize: '30px',
+        fontSize: matchWon ? 30 : 22,
         color: '#f4d232',
       })
       .setOrigin(0.5)
       .setAlpha(0);
     scene.tweens.add({ targets: winner, alpha: 1, duration: 400, delay: 250 });
 
+    if (!matchWon) {
+      const sub = scene.add
+        .text(width / 2, height / 2 + 16, `First to ${roundsToWin} round wins takes the match`, {
+          fontFamily: 'Rajdhani, sans-serif',
+          fontSize: '14px',
+          color: '#8fa3b8',
+        })
+        .setOrigin(0.5)
+        .setAlpha(0);
+      scene.tweens.add({ targets: sub, alpha: 1, duration: 400, delay: 250 });
+    }
+
+    const continueLabel = matchWon ? 'REMATCH' : 'NEXT ROUND';
+
     const rematchBtn = scene.add
       .rectangle(width / 2 - 110, height / 2 + 60, 190, 46, 0xf4d232)
       .setInteractive({ useHandCursor: true })
       .setAlpha(0);
     const rematchLabel = scene.add
-      .text(width / 2 - 110, height / 2 + 60, 'REMATCH', { fontFamily: 'Russo One, sans-serif', fontSize: '16px', color: '#0a0e14' })
+      .text(width / 2 - 110, height / 2 + 60, continueLabel, { fontFamily: 'Russo One, sans-serif', fontSize: '16px', color: '#0a0e14' })
       .setOrigin(0.5)
       .setAlpha(0);
 
@@ -192,7 +222,7 @@ export class MatchHUD {
       delay: 500,
     });
 
-    rematchBtn.on('pointerdown', onRematch);
+    rematchBtn.on('pointerdown', onContinue);
     menuBtn.on('pointerdown', onMenu);
   }
 }

@@ -123,7 +123,7 @@ export class MenuScene extends Phaser.Scene {
       { label: '🎯  TRAINING', action: () => this._goToSelect('training') },
       { label: '👥  LOCAL BATTLE', action: () => this._goToSelect('local') },
       { label: '🌐  ONLINE BATTLE', action: () => this.scene.start('OnlineScene') },
-      { label: '⚙️  SETTINGS', action: () => this._comingSoon('Settings') },
+      { label: '⚙️  SETTINGS', action: () => this.scene.start('SettingsScene', { returnTo: 'MenuScene' }) },
     ];
 
     const startY = height * 0.52;

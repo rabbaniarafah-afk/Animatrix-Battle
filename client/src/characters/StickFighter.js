@@ -2,8 +2,8 @@ import { AnimationController } from './AnimationController.js';
 import { getCharacterById } from './CharacterConfig.js';
 import { Hitbox } from '../combat/Hitbox.js';
 import { Hurtbox } from '../combat/Hurtbox.js';
-import { ATTACKS, getSpecialFor } from '../combat/Attack.js';
-import { getPowerFor, getSpecialProjectileFor } from '../combat/Projectile.js';
+import { ATTACKS, getSpecialFor, getUltimateFor } from '../combat/Attack.js';
+import { getPowerFor, getSpecialProjectileFor, getUltimateProjectileFor } from '../combat/Projectile.js';
 import { playPunch, playHeavyPunch, playKick, playSpecial, playPower, playDoubleJump, playRageActivate } from '../audio/SFX.js';
 import { landingDust, dashTrailStreak, rageEmber } from '../combat/HitEffects.js';
 
@@ -179,7 +179,7 @@ export class StickFighter {
         else if (keys.heavyPunch && grounded) this._startAttack('heavyPunch');
         else if (keys.kick && grounded) this._startAttack('kick');
         else if (keys.special && grounded && this.energy >= 100) this._startAttack('special');
-      }
+        else if (keys.ultimate && grounded && this.energy >= 100) this._startAttack('ultimate');      }
 
       if (this.isAttacking) this._advanceAttack();
       this._updateTimers();
@@ -280,6 +280,7 @@ export class StickFighter {
       else if (keys.kick && grounded) this._startAttack('kick');
       else if (keys.dashAttack && grounded && this.dashCooldown <= 0) this._startAttack('dashAttack');
       else if (keys.special && grounded && this.energy >= 100) this._startAttack('special');
+      else if (keys.ultimate && grounded && this.energy >= 100) this._startAttack('ultimate');
       else if (keys.power && this.powerCooldown <= 0) this._fireProjectile();
     }
 
@@ -295,10 +296,11 @@ export class StickFighter {
 
   _startAttack(id) {
     if (this.attackCooldown > 0) return;
-    const config = id === 'special' ? getSpecialFor(this.config.id) : ATTACKS[id];
+    const config = id === 'special' ? getSpecialFor(this.config.id) : id === 'ultimate' ? getUltimateFor(this.config.id) : ATTACKS[id];
     if (config.requiresAirborne && this.isGrounded) return;
     if (config.requiresGrounded && !this.isGrounded) return;
     if (config.energyCost && this.energy < config.energyCost) return;
+    if (config.requiresLowHealth && this.health > this.maxHealth * 0.35) return;
 
     this.attack = {
       config,
@@ -342,7 +344,7 @@ export class StickFighter {
   /** One-time special-move effects triggered right as the active (hit) window begins. */
   _applySpecialMechanics(config) {
     if (config.fireLaser) {
-      const laserConfig = getSpecialProjectileFor(this.config.id);
+      const laserConfig = config.id === 'ultimate' ? getUltimateProjectileFor(this.config.id) : getSpecialProjectileFor(this.config.id);
       if (laserConfig) this.onProjectile?.(this, laserConfig);
     }
 
@@ -592,7 +594,13 @@ export class StickFighter {
     this.reactionDuration = s.reactionDuration;
     this.isRaging = !!s.isRaging;
     this.sizeScale = s.sizeScale ?? 1;
-    const cfg = s.attack ? (s.attack.id === 'special' ? getSpecialFor(this.config.id) : ATTACKS[s.attack.id]) : null;
+    const cfg = s.attack
+      ? s.attack.id === 'special'
+        ? getSpecialFor(this.config.id)
+        : s.attack.id === 'ultimate'
+        ? getUltimateFor(this.config.id)
+        : ATTACKS[s.attack.id]
+      : null;
     this.attack = s.attack
       ? { config: cfg, phase: s.attack.phase, timer: s.attack.timer, hitCount: 0, maxHits: cfg.hits || 1, lastHitTime: null }
       : null;

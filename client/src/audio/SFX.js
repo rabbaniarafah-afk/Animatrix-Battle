@@ -12,6 +12,35 @@
 let ctx = null;
 let noiseBuffer = null;
 let muted = false;
+let masterVolume = 1; // 0..1, controlled from the Settings menu
+
+const SETTINGS_STORAGE_KEY = 'animatrixSettings';
+
+/** Loads any previously-saved volume/mute preference (runs once on import). */
+function loadPersistedAudioSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (typeof saved.volume === 'number') masterVolume = Math.max(0, Math.min(1, saved.volume));
+    if (typeof saved.muted === 'boolean') muted = saved.muted;
+  } catch (e) {
+    // localStorage unavailable (e.g. private browsing) or corrupted data — just use defaults.
+  }
+}
+loadPersistedAudioSettings();
+
+function persistAudioSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    existing.volume = masterVolume;
+    existing.muted = muted;
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(existing));
+  } catch (e) {
+    // Ignore — settings just won't persist across sessions in this browser.
+  }
+}
 
 function getContext() {
   if (!ctx) {
@@ -20,6 +49,16 @@ function getContext() {
     ctx = new AC();
   }
   return ctx;
+}
+
+/** Sets the master SFX volume (0..1). Persisted/read by the Settings menu. */
+export function setVolume(value) {
+  masterVolume = Math.max(0, Math.min(1, value));
+  persistAudioSettings();
+}
+
+export function getVolume() {
+  return masterVolume;
 }
 
 function getNoiseBuffer() {
@@ -43,11 +82,16 @@ export function unlock() {
 
 export function setMuted(value) {
   muted = value;
+  persistAudioSettings();
+}
+
+export function getMuted() {
+  return muted;
 }
 
 function noiseBurst({ duration = 0.08, filterType = 'lowpass', freq = 1200, q = 0.7, gain = 0.5, delay = 0 }) {
   const c = getContext();
-  if (!c || muted) return;
+  if (!c || muted || masterVolume <= 0) return;
   const src = c.createBufferSource();
   src.buffer = getNoiseBuffer();
 
@@ -59,7 +103,7 @@ function noiseBurst({ duration = 0.08, filterType = 'lowpass', freq = 1200, q = 
   const env = c.createGain();
   const t0 = c.currentTime + delay;
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(gain, t0 + 0.004);
+  env.gain.linearRampToValueAtTime(gain * masterVolume, t0 + 0.004);
   env.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
 
   src.connect(filter);
@@ -72,7 +116,7 @@ function noiseBurst({ duration = 0.08, filterType = 'lowpass', freq = 1200, q = 
 
 function thump({ startFreq = 160, endFreq = 55, duration = 0.16, gain = 0.55, type = 'sine', delay = 0 }) {
   const c = getContext();
-  if (!c || muted) return;
+  if (!c || muted || masterVolume <= 0) return;
   const osc = c.createOscillator();
   osc.type = type;
   const env = c.createGain();
@@ -82,7 +126,7 @@ function thump({ startFreq = 160, endFreq = 55, duration = 0.16, gain = 0.55, ty
   osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t0 + duration);
 
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(gain, t0 + 0.006);
+  env.gain.linearRampToValueAtTime(gain * masterVolume, t0 + 0.006);
   env.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
 
   osc.connect(env);
@@ -124,7 +168,7 @@ export function playHit({ big = false } = {}) {
 /** Special — bigger telegraph, dramatic charge-up rise then a heavy impact. */
 export function playSpecial() {
   const c = getContext();
-  if (!c || muted) return;
+  if (!c || muted || masterVolume <= 0) return;
   // Rising charge tone
   const osc = c.createOscillator();
   osc.type = 'sawtooth';
@@ -133,8 +177,8 @@ export function playSpecial() {
   osc.frequency.setValueAtTime(90, t0);
   osc.frequency.exponentialRampToValueAtTime(340, t0 + 0.32);
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(0.22, t0 + 0.1);
-  env.gain.linearRampToValueAtTime(0.3, t0 + 0.3);
+  env.gain.linearRampToValueAtTime(0.22 * masterVolume, t0 + 0.1);
+  env.gain.linearRampToValueAtTime(0.3 * masterVolume, t0 + 0.3);
   env.gain.exponentialRampToValueAtTime(0.001, t0 + 0.36);
   osc.connect(env);
   env.connect(c.destination);
@@ -156,7 +200,7 @@ export function playBlock() {
 /** Power blast fired — a quick rising laser-ish zap. */
 export function playPower() {
   const c = getContext();
-  if (!c || muted) return;
+  if (!c || muted || masterVolume <= 0) return;
   const osc = c.createOscillator();
   osc.type = 'sawtooth';
   const env = c.createGain();
@@ -164,7 +208,7 @@ export function playPower() {
   osc.frequency.setValueAtTime(520, t0);
   osc.frequency.exponentialRampToValueAtTime(1400, t0 + 0.11);
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(0.24, t0 + 0.02);
+  env.gain.linearRampToValueAtTime(0.24 * masterVolume, t0 + 0.02);
   env.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
   osc.connect(env);
   env.connect(c.destination);
@@ -182,7 +226,7 @@ export function playDoubleJump() {
 /** Rage activating — a low ominous rumble swell. */
 export function playRageActivate() {
   const c = getContext();
-  if (!c || muted) return;
+  if (!c || muted || masterVolume <= 0) return;
   const osc = c.createOscillator();
   osc.type = 'sawtooth';
   const env = c.createGain();
@@ -190,7 +234,7 @@ export function playRageActivate() {
   osc.frequency.setValueAtTime(60, t0);
   osc.frequency.linearRampToValueAtTime(85, t0 + 0.4);
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(0.28, t0 + 0.15);
+  env.gain.linearRampToValueAtTime(0.28 * masterVolume, t0 + 0.15);
   env.gain.linearRampToValueAtTime(0, t0 + 0.45);
   osc.connect(env);
   env.connect(c.destination);
