@@ -136,10 +136,12 @@ export class ArenaScene extends Phaser.Scene {
 
     this.escKey = kb.addKey('ESC');
 
-    // Dev/testing shortcut: instantly fills both fighters' energy bars so
-    // specials can be tested without fighting for 10-20 seconds each time.
+    // Dev/testing shortcuts: instantly fill both fighters' energy bars, and
+    // (separately) drop their health into Ultimate range, so specials and
+    // ultimates can be tested without a full fight each time.
     // Not part of normal gameplay — safe to remove later if you want.
     this.debugFillEnergyKey = kb.addKey('M');
+    this.debugLowHealthKey = kb.addKey('N');
   }
 
   _emptyKeys() {
@@ -504,6 +506,18 @@ export class ArenaScene extends Phaser.Scene {
       if (!this.isOnline || this.isHost) {
         this.player1.energy = this.player1.maxEnergy;
         this.player2.energy = this.player2.maxEnergy;
+      }
+    }
+
+    // Dev/testing shortcut — press N to drop both fighters to 20% health
+    // (Ultimate-eligible AND Rage-eligible) without needing to actually take
+    // damage. Same online-host restriction as the energy shortcut above.
+    if (Phaser.Input.Keyboard.JustDown(this.debugLowHealthKey) && !this.matchOver) {
+      if (!this.isOnline || this.isHost) {
+        this.player1.health = this.player1.maxHealth * 0.2;
+        this.player2.health = this.player2.maxHealth * 0.2;
+        this.player1.isRaging = true;
+        this.player2.isRaging = true;
       }
     }
 
