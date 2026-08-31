@@ -1,3 +1,5 @@
+import { getCoins } from '../meta/Wallet.js';
+
 const ACCENT_COLORS = [0xfbe64d, 0x55b8f6, 0x911df5, 0xd5ecfb, 0x000000];
 
 export class MenuScene extends Phaser.Scene {
@@ -13,6 +15,18 @@ export class MenuScene extends Phaser.Scene {
     this._buildTitle(width, height);
     this._buildButtons(width, height);
     this._buildFooter(width, height);
+    this._buildCoinBadge(width, height);
+  }
+
+  _buildCoinBadge(width, height) {
+    this.add
+      .text(width - 24, 20, `🪙 ${getCoins()}`, {
+        fontFamily: 'Rajdhani, sans-serif',
+        fontSize: '18px',
+        fontStyle: '700',
+        color: '#f4d232',
+      })
+      .setOrigin(1, 0);
   }
 
   // -- Background ------------------------------------------------------
@@ -123,6 +137,7 @@ export class MenuScene extends Phaser.Scene {
       { label: '🎯  TRAINING', action: () => this._goToSelect('training') },
       { label: '👥  LOCAL BATTLE', action: () => this._goToSelect('local') },
       { label: '🌐  ONLINE BATTLE', action: () => this.scene.start('OnlineScene') },
+      { label: '🪙  UPGRADES', action: () => this.scene.start('UpgradeScene', { returnTo: 'MenuScene' }) },
       { label: '⚙️  SETTINGS', action: () => this.scene.start('SettingsScene', { returnTo: 'MenuScene' }) },
     ];
 
@@ -167,7 +182,7 @@ export class MenuScene extends Phaser.Scene {
 
   _buildFooter(width, height) {
     this.add
-      .text(width / 2, height - 24, 'PHASE 1  ·  Local exploration build', {
+      .text(width / 2, height - 24, 'Fight. Animate. Dominate.', {
         fontFamily: 'Rajdhani, sans-serif',
         fontSize: '13px',
         color: '#4a5568',

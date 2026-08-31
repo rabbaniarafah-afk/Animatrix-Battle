@@ -56,6 +56,8 @@ export class CombatController {
     }
     // Rage: once a fighter drops below the health threshold, their attacks hit harder.
     if (attacker.isRaging) damage *= RAGE_DAMAGE_MULT;
+    // Permanent coin-bought damage upgrade (see meta/Wallet.js) — applies to every hit.
+    damage *= attacker.upgradeDamageMult ?? 1;
 
     defender.takeHit({
       damage,

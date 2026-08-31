@@ -9,6 +9,7 @@ import { Projectile } from '../combat/Projectile.js';
 import { rectsOverlap } from '../combat/Hitbox.js';
 import { spawnHitSpark, blockSpark, screenShake, comboText, specialFlash, powerImpact, damageNumber } from '../combat/HitEffects.js';
 import { playHit, playBlock } from '../audio/SFX.js';
+import { addCoins } from '../meta/Wallet.js';
 
 const NET_TICK_MS = 50; // ~20Hz state broadcast from host to guest
 
@@ -64,6 +65,11 @@ export class ArenaScene extends Phaser.Scene {
       depth: 11,
       isAI: !this.isLocal && !this.isOnline,
       onProjectile,
+      // Coin-bought upgrades belong to THIS browser's wallet. Only apply
+      // them to player2 in Local Battle, where both fighters genuinely
+      // share this one wallet — never to an AI opponent (Quick/Training)
+      // or an online opponent's fighter (a different person's device).
+      applyUpgrades: this.isLocal,
     });
 
     this.physics.add.collider(this.player1.body, this.groundCollider);
@@ -274,23 +280,25 @@ export class ArenaScene extends Phaser.Scene {
 
       if (rectsOverlap(proj.getRect(), target.hurtbox.getRect())) {
         const blocked = target.blocking;
+        // Permanent coin-bought damage upgrade applies to projectiles too.
+        const dmg = proj.config.damage * (proj.owner.upgradeDamageMult ?? 1);
         target.takeHit({
-          damage: proj.config.damage,
+          damage: dmg,
           knockback: proj.config.knockback,
           knockbackUp: proj.config.knockbackUp,
           hitstun: 260,
           fromX: proj.x,
           blocked,
-          energyGain: blocked ? proj.config.damage * 0.2 : proj.config.damage * 0.4,
+          energyGain: blocked ? dmg * 0.2 : dmg * 0.4,
         });
-        proj.owner.gainEnergy(blocked ? proj.config.damage * 0.3 : proj.config.damage * 0.8);
+        proj.owner.gainEnergy(blocked ? dmg * 0.3 : dmg * 0.8);
 
         if (blocked) {
           blockSpark(this, proj.x, proj.y);
           playBlock();
         } else {
           powerImpact(this, proj.x, proj.y, proj.config.color);
-          damageNumber(this, proj.x, proj.y - 10, proj.config.damage, false);
+          damageNumber(this, proj.x, proj.y - 10, dmg, false);
           playHit({ big: false });
         }
 
@@ -453,6 +461,15 @@ export class ArenaScene extends Phaser.Scene {
     else this.p2Wins += 1;
     this.hud.setRoundWins(this.p1Wins, this.p2Wins, this.roundsToWin);
     const matchWon = (winnerIsP1 ? this.p1Wins : this.p2Wins) >= this.roundsToWin;
+
+    // Coins: awarded once per completed match (not per round), to this
+    // browser's wallet — see meta/Wallet.js. In Online Battle, the guest's
+    // own fighter is player2 (host is always player1), so we check the
+    // right one depending on role.
+    if (matchWon) {
+      const myFighter = this.isOnline && !this.isHost ? this.player2 : this.player1;
+      addCoins(winner === myFighter ? 120 : 40);
+    }
 
     this.hitStopUntil = this.time.now + 130;
 

@@ -1,9 +1,7 @@
 # ui/
 
-Arrives in **Phase 4** (round system + victory screen) with earlier pieces in Phase 2 (health bars).
+Fully implemented.
 
-Planned:
-- `HealthBar.js` / `EnergyBar.js` — per-player bars driven by `StickFighter` stats
-- `MatchHUD.js` — round number, match timer, character names, P1/P2/VS layout
-- `RoundIntro.js` — reusable version of the "3, 2, 1, FIGHT!" sequence already prototyped in `ArenaScene._playIntroCountdown()`
-- `VictoryScreen.js` — winner banner + REMATCH / MAIN MENU buttons
+- `MatchHUD.js` — health/energy bars, round-win pips (best-of-3), VS intro, "3, 2, 1, FIGHT!" countdown, combo counter, K.O./round-win/match-won screens with REMATCH / NEXT ROUND / MAIN MENU buttons
+
+Settings (volume, mute, fullscreen, controls reference) live in `../scenes/SettingsScene.js` rather than here, since it's a full scene of its own reached from the Main Menu.

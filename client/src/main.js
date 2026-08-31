@@ -1,6 +1,7 @@
 import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { SettingsScene } from './scenes/SettingsScene.js';
+import { UpgradeScene } from './scenes/UpgradeScene.js';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene.js';
 import { ArenaSelectScene } from './scenes/ArenaSelectScene.js';
 import { ArenaScene } from './scenes/ArenaScene.js';
@@ -9,7 +10,8 @@ import { unlock as unlockAudio } from './audio/SFX.js';
 
 // ---------------------------------------------------------------------------
 // ANIMATRIX BATTLE — Game Bootstrap
-// Phase 1: Menu -> Character Select -> Arena (movement, jump, gravity)
+// Boots into MenuScene; full flow is Menu -> Settings/Character Select ->
+// Arena Select -> Arena (combat, rounds, online multiplayer).
 // ---------------------------------------------------------------------------
 
 const config = {
@@ -31,7 +33,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, SettingsScene, CharacterSelectScene, ArenaSelectScene, ArenaScene, OnlineScene],
+  scene: [BootScene, MenuScene, SettingsScene, UpgradeScene, CharacterSelectScene, ArenaSelectScene, ArenaScene, OnlineScene],
 };
 
 window.ANIMATRIX = window.ANIMATRIX || {

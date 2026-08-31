@@ -6,6 +6,7 @@ import { ATTACKS, getSpecialFor, getUltimateFor } from '../combat/Attack.js';
 import { getPowerFor, getSpecialProjectileFor, getUltimateProjectileFor } from '../combat/Projectile.js';
 import { playPunch, playHeavyPunch, playKick, playSpecial, playPower, playDoubleJump, playRageActivate } from '../audio/SFX.js';
 import { landingDust, dashTrailStreak, rageEmber } from '../combat/HitEffects.js';
+import { getMultiplier as getUpgradeMultiplier } from '../meta/Wallet.js';
 
 const MOVE_SPEED = 230;
 const RUN_SPEED = 370;
@@ -49,10 +50,23 @@ export class StickFighter {
     this.isAI = !!opts.isAI;
 
     // Effective, ability-adjusted movement stats for this fighter.
-    this.moveSpeed = MOVE_SPEED * this._ability('moveSpeedMult', 1);
-    this.runSpeed = RUN_SPEED * this._ability('moveSpeedMult', 1);
+    // Also folds in permanent coin-bought upgrades from the Upgrades screen
+    // (see meta/Wallet.js) — but ONLY for the fighter that actually belongs
+    // to this browser's wallet. `applyUpgrades` defaults to true (used for
+    // the local human in every mode); ArenaScene explicitly passes false
+    // for an AI opponent or an online opponent's fighter, since applying
+    // your own upgrade levels to whichever character *they* happen to be
+    // playing would be an unearned (and unfair) advantage for them.
+    const upgradesEnabled = opts.applyUpgrades !== false;
+    const speedUpgrade = upgradesEnabled ? getUpgradeMultiplier(characterId, 'speed') : 1;
+    this.moveSpeed = MOVE_SPEED * this._ability('moveSpeedMult', 1) * speedUpgrade;
+    this.runSpeed = RUN_SPEED * this._ability('moveSpeedMult', 1) * speedUpgrade;
     this.dashSpeed = DASH_SPEED * this._ability('dashSpeedMult', 1);
     this.dashCooldownMs = DASH_COOLDOWN_MS * this._ability('dashCooldownMult', 1);
+
+    // Damage upgrade is applied per-hit in CombatController.js, alongside
+    // the existing per-character passive damage multipliers.
+    this.upgradeDamageMult = upgradesEnabled ? getUpgradeMultiplier(characterId, 'damage') : 1;
 
     this.body = scene.add.zone(x, groundY - BODY_H / 2, BODY_W, BODY_H);
     scene.physics.add.existing(this.body);
@@ -84,8 +98,8 @@ export class StickFighter {
     // multiplies the visual rig and hurtbox; 1 = normal size.
     this.sizeScale = 1;
 
-    this.health = MAX_HEALTH;
-    this.maxHealth = MAX_HEALTH;
+    this.maxHealth = MAX_HEALTH * (upgradesEnabled ? getUpgradeMultiplier(characterId, 'health') : 1);
+    this.health = this.maxHealth;
     this.defeated = false;
     this.defeatElapsed = 0;
     this.victoryPose = false;
