@@ -18,7 +18,17 @@ export class NetworkClient {
   connect() {
     if (this.socket) return;
     this.socket = window.io(); // same-origin connection to server/server.js
-    const events = ['opponentJoined', 'opponentLeft', 'opponentCharacterSelect', 'matchStart', 'input', 'state', 'matchEvent', 'connect_error'];
+    const events = [
+      'opponentJoined',
+      'opponentLeft',
+      'opponentCharacterSelect',
+      'matchStart',
+      'input',
+      'state',
+      'matchEvent',
+      'lobbyUpdate',
+      'connect_error',
+    ];
     events.forEach((evt) => {
       this.socket.on(evt, (payload) => this._emitLocal(evt, payload));
     });
@@ -33,16 +43,18 @@ export class NetworkClient {
     (this.listeners[event] || []).forEach((h) => h(payload));
   }
 
-  createRoom() {
+  /** mode: '1v1' (default) or '2v2'. Resolves to { code, mode }. */
+  createRoom(mode = '1v1') {
     return new Promise((resolve) => {
       this.connect();
-      this.socket.emit('createRoom', ({ code }) => {
+      this.socket.emit('createRoom', { mode }, ({ code, mode: confirmedMode }) => {
         this.code = code;
-        resolve(code);
+        resolve({ code, mode: confirmedMode });
       });
     });
   }
 
+  /** Resolves to { success, reason?, mode?, team?, slot? }. */
   joinRoom(code) {
     return new Promise((resolve) => {
       this.connect();
@@ -51,6 +63,10 @@ export class NetworkClient {
         resolve(res);
       });
     });
+  }
+
+  setReady(ready) {
+    this.socket?.emit('setReady', { ready });
   }
 
   sendCharacterSelect(id) {

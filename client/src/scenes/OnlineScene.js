@@ -1,5 +1,7 @@
 import { NetworkClient } from '../networking/NetworkClient.js';
 
+const TEAM_SLOTS = ['A0', 'A1', 'B0', 'B1'];
+
 export class OnlineScene extends Phaser.Scene {
   constructor() {
     super('OnlineScene');
@@ -7,7 +9,9 @@ export class OnlineScene extends Phaser.Scene {
 
   init() {
     this.enteredCode = '';
-    this.view = 'menu'; // 'menu' | 'creating' | 'joining' | 'waiting'
+    this.roomMode = '1v1'; // '1v1' | '2v2' — chosen on the root menu
+    this.mySlot = null; // e.g. 'A0' — only set in 2v2
+    this.view = 'menu'; // 'menu' | 'creating' | 'joining' | 'waiting' | 'lobby2v2'
   }
 
   create() {
@@ -22,7 +26,7 @@ export class OnlineScene extends Phaser.Scene {
     if (!window.ANIMATRIX.network) window.ANIMATRIX.network = new NetworkClient();
     this.net = window.ANIMATRIX.network;
     this.net.connect();
-    window.ANIMATRIX.selectedArena = 'neon_rooftop'; // keep host/guest on the same stage
+    window.ANIMATRIX.selectedArena = 'neon_rooftop'; // keep everyone on the same stage
 
     this.body = this.add.container(width / 2, height / 2 + 10);
     this._showMenu();
@@ -33,26 +37,56 @@ export class OnlineScene extends Phaser.Scene {
     this.body.removeAll(true);
   }
 
-  // -- Root menu: Create / Join -------------------------------------------
+  // -- Root menu: mode toggle + Create / Join ------------------------------
   _showMenu() {
     this.view = 'menu';
     this._clearBody();
 
-    const createBtn = this._makeButton(0, -40, 'CREATE ROOM', () => this._createRoom());
-    const joinBtn = this._makeButton(0, 30, 'JOIN ROOM', () => this._showJoin());
-    this.body.add([createBtn.bg, createBtn.label, joinBtn.bg, joinBtn.label]);
+    const modeLabel = this.add
+      .text(0, -140, 'MATCH TYPE', { fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: '#8fa3b8', letterSpacing: 3 })
+      .setOrigin(0.5);
+
+    const oneVOneBtn = this._makeToggle(-75, -100, '1v1', this.roomMode === '1v1', () => {
+      this.roomMode = '1v1';
+      this._showMenu();
+    });
+    const twoVTwoBtn = this._makeToggle(75, -100, '2v2', this.roomMode === '2v2', () => {
+      this.roomMode = '2v2';
+      this._showMenu();
+    });
+
+    const createBtn = this._makeButton(0, -30, 'CREATE ROOM', () => this._createRoom());
+    const joinBtn = this._makeButton(0, 40, 'JOIN ROOM', () => this._showJoin());
+    this.body.add([modeLabel, oneVOneBtn.bg, oneVOneBtn.label, twoVTwoBtn.bg, twoVTwoBtn.label, createBtn.bg, createBtn.label, joinBtn.bg, joinBtn.label]);
+
+    const hint =
+      this.roomMode === '2v2'
+        ? '2v2 is in early access: up to 4 friends can create/join a team lobby together right now. Full 2v2 combat is coming in a follow-up update.'
+        : 'Play with a friend on the same network by sharing a room code.';
 
     this.body.add(
       this.add
-        .text(0, 100, 'Play with a friend on the same network by sharing a room code.', {
+        .text(0, 110, hint, {
           fontFamily: 'Rajdhani, sans-serif',
-          fontSize: '14px',
+          fontSize: '13px',
           color: '#8fa3b8',
           align: 'center',
-          wordWrap: { width: 440 },
+          wordWrap: { width: 460 },
         })
         .setOrigin(0.5)
     );
+  }
+
+  _makeToggle(x, y, text, active, onClick) {
+    const bg = this.add
+      .rectangle(x, y, 130, 40, active ? 0x1d2430 : 0x141a24)
+      .setStrokeStyle(2, active ? 0xf4d232 : 0x2c3444)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x, y, text, { fontFamily: 'Russo One, sans-serif', fontSize: '15px', color: active ? '#f4d232' : '#8fa3b8' })
+      .setOrigin(0.5);
+    bg.on('pointerdown', onClick);
+    return { bg, label };
   }
 
   _makeButton(x, y, text, onClick) {
@@ -78,9 +112,15 @@ export class OnlineScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.body.add(status);
 
-    const code = await this.net.createRoom();
+    const { code, mode } = await this.net.createRoom(this.roomMode);
     window.ANIMATRIX.isHost = true;
-    this._showWaiting(code, 'Share this code with your opponent:');
+
+    if (mode === '2v2') {
+      this.mySlot = 'A0'; // the creator always takes the first slot
+      this._showTeamLobby(code);
+    } else {
+      this._showWaiting(code, 'Share this code with your opponent:');
+    }
   }
 
   // -- Join room: numeric keypad -------------------------------------------
@@ -159,13 +199,20 @@ export class OnlineScene extends Phaser.Scene {
       return;
     }
     window.ANIMATRIX.isHost = false;
-    // A successful join means both sides are already paired — go straight
-    // to character select rather than waiting for an event that only the
-    // host receives.
+
+    if (res.mode === '2v2') {
+      this.mySlot = `${res.team}${res.slot}`;
+      this._showTeamLobby(this.enteredCode);
+      return;
+    }
+
+    // 1v1 — a successful join means both sides are already paired, go
+    // straight to character select rather than waiting for an event that
+    // only the host receives.
     this.scene.start('CharacterSelectScene', { mode: 'online' });
   }
 
-  // -- Waiting for the opponent ---------------------------------------------
+  // -- Waiting for the opponent (1v1) ---------------------------------------
   _showWaiting(code, message, skipCodeDisplay = false) {
     this.view = 'waiting';
     this._clearBody();
@@ -196,6 +243,103 @@ export class OnlineScene extends Phaser.Scene {
     this.net.on('opponentJoined', () => {
       this.scene.start('CharacterSelectScene', { mode: 'online' });
     });
+  }
+
+  // -- Team Lobby (2v2) -------------------------------------------------------
+  _showTeamLobby(code) {
+    this.view = 'lobby2v2';
+    this._clearBody();
+
+    this.body.add(
+      this.add
+        .text(0, -190, 'ROOM CODE', { fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', color: '#8fa3b8', letterSpacing: 3 })
+        .setOrigin(0.5)
+    );
+    this.body.add(
+      this.add
+        .text(0, -160, code, { fontFamily: 'Russo One, sans-serif', fontSize: '36px', color: '#f4d232', letterSpacing: 10 })
+        .setOrigin(0.5)
+    );
+
+    this.body.add(
+      this.add.text(-150, -95, 'TEAM A', { fontFamily: 'Russo One, sans-serif', fontSize: '18px', color: '#55b8f6' }).setOrigin(0.5)
+    );
+    this.body.add(
+      this.add.text(150, -95, 'TEAM B', { fontFamily: 'Russo One, sans-serif', fontSize: '18px', color: '#e23b3b' }).setOrigin(0.5)
+    );
+
+    this.slotTexts = {};
+    const positions = { A0: [-150, -50], A1: [-150, 10], B0: [150, -50], B1: [150, 10] };
+    TEAM_SLOTS.forEach((slot) => {
+      const [x, y] = positions[slot];
+      const bg = this.add.rectangle(x, y, 180, 44, 0x141a24, 0.9).setStrokeStyle(2, 0x2c3444);
+      const txt = this.add
+        .text(x, y, 'EMPTY', { fontFamily: 'Rajdhani, sans-serif', fontSize: '15px', fontStyle: '700', color: '#4a5568' })
+        .setOrigin(0.5);
+      this.body.add([bg, txt]);
+      this.slotTexts[slot] = { bg, txt };
+    });
+
+    this.lobbyStatus = this.add
+      .text(0, 75, 'Waiting for players…', { fontFamily: 'Rajdhani, sans-serif', fontSize: '15px', color: '#8fa3b8' })
+      .setOrigin(0.5);
+    this.body.add(this.lobbyStatus);
+
+    this.body.add(
+      this.add
+        .text(0, 105, 'Share the room code above — up to 3 friends can join this lobby.', {
+          fontFamily: 'Rajdhani, sans-serif',
+          fontSize: '12px',
+          color: '#5a6578',
+          align: 'center',
+          wordWrap: { width: 420 },
+        })
+        .setOrigin(0.5)
+    );
+
+    // Reflect ourselves immediately without waiting for a round-trip.
+    this._renderLobbySlots({ [this.mySlot]: true });
+
+    this.net.on('lobbyUpdate', (snapshot) => this._renderLobbySlots(snapshot.slots, true));
+    this.net.on('opponentLeft', () => this._renderLobbyDisconnectNotice());
+  }
+
+  _renderLobbySlots(slots, fromServer = false) {
+    let filled = 0;
+    TEAM_SLOTS.forEach((slot) => {
+      const occupied = fromServer ? !!slots[slot] : slot === this.mySlot ? true : !!slots[slot];
+      if (occupied) filled += 1;
+      const isMe = slot === this.mySlot;
+      const { bg, txt } = this.slotTexts[slot];
+      if (isMe) {
+        txt.setText('YOU');
+        txt.setColor('#f4d232');
+        bg.setStrokeStyle(2, 0xf4d232);
+      } else if (occupied) {
+        txt.setText('PLAYER JOINED');
+        txt.setColor('#8fe6a8');
+        bg.setStrokeStyle(2, 0x3fae5c);
+      } else {
+        txt.setText('EMPTY');
+        txt.setColor('#4a5568');
+        bg.setStrokeStyle(2, 0x2c3444);
+      }
+    });
+
+    if (filled >= 4) {
+      this.lobbyStatus.setText('✅ Lobby full! 2v2 combat is coming in a follow-up update — for now, this confirms the room works end-to-end.');
+      this.lobbyStatus.setColor('#8fe6a8');
+    } else {
+      this.lobbyStatus.setText(`Waiting for players… (${filled}/4)`);
+      this.lobbyStatus.setColor('#8fa3b8');
+    }
+  }
+
+  _renderLobbyDisconnectNotice() {
+    if (this.lobbyStatus) {
+      this.lobbyStatus.setText('A player disconnected from the lobby.');
+      this.lobbyStatus.setColor('#e08080');
+    }
   }
 
   _buildBackButton() {
