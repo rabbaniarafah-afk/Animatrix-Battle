@@ -26,8 +26,8 @@ export const CHARACTERS = [
     description: 'Balanced and relentless.',
     specialName: 'MASSIVE HAYMAKER',
     abilityName: 'Relentless',
-    abilityDesc: 'Builds energy 20% faster than anyone else.',
-    abilities: { energyRate: 1.2 },
+    abilityDesc: 'Builds energy 10% faster than anyone else.',
+    abilities: { energyRate: 1.1 },
   },
   {
     id: 'barbarian',
